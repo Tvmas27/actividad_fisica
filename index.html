@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Atlas KPI | Dashboard de actividad física</title>
+    <meta
+      name="description"
+      content="Dashboard visual para el proyecto de actividad física con KPIs, SLA y métricas conectadas a la API REST."
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  </head>
+  <body>
+    <div class="bg-orb bg-orb-a"></div>
+    <div class="bg-orb bg-orb-b"></div>
+    <div class="bg-grid"></div>
+
+    <main class="page-shell">
+      <section class="hero card reveal">
+        <div class="hero-copy">
+          <div class="hero-badges">
+            <span class="pill pill-live">API conectada</span>
+            <span class="pill">Simulación de datos en tiempo real</span>
+          </div>
+          <p class="eyebrow">Proyecto de actividad física</p>
+          <h1>Dashboard de <span class="highlight">KPIs claros, elegantes y listos para presentar</span></h1>
+          <p class="lead">
+            Una interfaz más sobria y visual para mostrar tus indicadores, con tarjetas, semáforo SLA y gráficos que
+            se leen rápido sin parecer una plantilla genérica.
+          </p>
+
+          <div class="hero-actions">
+            <a class="button button-primary" href="#kpis">Ver KPIs</a>
+            <a class="button button-secondary" href="#sla">Revisar SLA</a>
+          </div>
+        </div>
+
+        <div class="hero-panel">
+          <div class="hero-panel-card">
+            <span class="meta-label">Estado general</span>
+            <strong id="hero-sla">Semáforo cargando...</strong>
+            <p id="hero-sla-desc">Conectando con la API</p>
+          </div>
+          <div class="hero-panel-stats">
+            <div>
+              <span class="meta-label">Promedio minutos</span>
+              <strong id="hero-minutos">--</strong>
+            </div>
+            <div>
+              <span class="meta-label">Uso de app</span>
+              <strong id="hero-usa-app">--</strong>
+            </div>
+            <div>
+              <span class="meta-label">Correlación</span>
+              <strong id="hero-correlacion">--</strong>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="kpis" class="kpis">
+        <article class="card kpi kpi-primary reveal">
+          <div class="kpi-top">
+            <span class="kpi-label">KPI 1</span>
+            <span class="kpi-chip">OMS</span>
+          </div>
+          <h2><span id="kpi-nivel-oms" class="placeholder">[% nivel OMS]</span></h2>
+          <p id="kpi-nivel-oms-desc">Distribución entre sedentario, insuficiente y activo</p>
+          <div class="kpi-foot">Indicador principal del tablero</div>
+        </article>
+
+        <article class="card kpi reveal">
+          <div class="kpi-top">
+            <span class="kpi-label">KPI 2</span>
+            <span class="kpi-chip">Edad</span>
+          </div>
+          <h2><span id="kpi-minutos" class="placeholder">[Minutos promedio]</span></h2>
+          <p id="kpi-minutos-desc">Promedio de actividad por rango etario</p>
+          <div class="kpi-foot">Lectura rápida por segmento</div>
+        </article>
+
+        <article class="card kpi reveal">
+          <div class="kpi-top">
+            <span class="kpi-label">KPI 3</span>
+            <span class="kpi-chip">Sedentarismo</span>
+          </div>
+          <h2><span id="kpi-sedentarismo" class="placeholder">[% sedentarios]</span></h2>
+          <p id="kpi-sedentarismo-desc">Porcentaje de personas sedentarias por rango</p>
+          <div class="kpi-foot">Comparación entre grupos</div>
+        </article>
+
+        <article class="card kpi reveal">
+          <div class="kpi-top">
+            <span class="kpi-label">KPI 4</span>
+            <span class="kpi-chip">Actividad</span>
+          </div>
+          <h2><span id="kpi-tipo-actividad" class="placeholder">[Tipo actividad]</span></h2>
+          <p id="kpi-tipo-actividad-desc">Actividad más frecuente detectada</p>
+          <div class="kpi-foot">Patrón dominante del dataset</div>
+        </article>
+
+        <article class="card kpi reveal">
+          <div class="kpi-top">
+            <span class="kpi-label">KPI 5</span>
+            <span class="kpi-chip">Relación</span>
+          </div>
+          <h2><span id="kpi-correlacion" class="placeholder">[r = 0.0]</span></h2>
+          <p id="kpi-correlacion-desc">Horas sentadas versus percepción de salud</p>
+          <div class="kpi-foot">Interpretación estadística</div>
+        </article>
+
+        <article class="card kpi reveal">
+          <div class="kpi-top">
+            <span class="kpi-label">KPI 6</span>
+            <span class="kpi-chip">App</span>
+          </div>
+          <h2><span id="kpi-usa-app" class="placeholder">[% que usa app]</span></h2>
+          <p id="kpi-usa-app-desc">Porcentaje de usuarios que usa la app</p>
+          <div class="kpi-foot">Indicador complementario</div>
+        </article>
+
+        <article id="sla" class="card kpi kpi-sla reveal">
+          <div class="kpi-top">
+            <span class="kpi-label">KPI 7</span>
+            <span class="kpi-chip">SLA</span>
+          </div>
+          <h2><span id="kpi-sla" class="placeholder">[Semáforo SLA]</span></h2>
+          <div id="kpi-sla-semaforo" class="semaforo" aria-label="Semáforo SLA" role="img">
+            <span class="luz" data-color="red" title="Rojo"></span>
+            <span class="luz" data-color="yellow" title="Amarillo"></span>
+            <span class="luz" data-color="green" title="Verde"></span>
+          </div>
+          <p id="kpi-sla-desc">obligatorio</p>
+          <div class="kpi-foot">Estado global del sistema</div>
+        </article>
+      </section>
+
+      <section class="card full-width reveal">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Vista comparativa</p>
+            <h3>Composición del tablero y cobertura requerida</h3>
+          </div>
+          <span class="badge">Cobertura completa</span>
+        </div>
+
+        <div class="table-wrap">
+          <table class="kpi-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>KPI</th>
+                <th>Tipo</th>
+                <th>¿Obligatorio?</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>1</td>
+                <td>% nivel OMS (sedentario/insuficiente/activo)</td>
+                <td>Principal</td>
+                <td>✅</td>
+              </tr>
+              <tr>
+                <td>2</td>
+                <td>Minutos promedio por rango etario</td>
+                <td>Principal</td>
+                <td>✅</td>
+              </tr>
+              <tr>
+                <td>3</td>
+                <td>% sedentarios por rango etario</td>
+                <td>Principal</td>
+                <td>✅</td>
+              </tr>
+              <tr>
+                <td>4</td>
+                <td>Tipo actividad más frecuente</td>
+                <td>Principal</td>
+                <td>✅</td>
+              </tr>
+              <tr>
+                <td>5</td>
+                <td>Correlación horas vs salud</td>
+                <td>Principal</td>
+                <td>✅</td>
+              </tr>
+              <tr>
+                <td>6</td>
+                <td>% que usa app</td>
+                <td>Complementario</td>
+                <td>-</td>
+              </tr>
+              <tr>
+                <td>7</td>
+                <td>Semáforo SLA</td>
+                <td>SLA</td>
+                <td>✅ obligatorio</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="content-grid">
+        <article class="card chart-card">
+          <div class="section-head">
+            <div>
+              <p class="eyebrow">Tendencia</p>
+              <h3>Evolución del indicador principal</h3>
+            </div>
+            <span class="badge placeholder">[TU VARIABLE PRINCIPAL]</span>
+          </div>
+          <canvas id="mainChart" height="120"></canvas>
+        </article>
+
+        <article class="card info-card">
+          <div class="section-head">
+            <div>
+              <p class="eyebrow">Detalles</p>
+              <h3>Espacios que debes completar</h3>
+            </div>
+          </div>
+
+          <ul class="todo-list">
+            <li><strong>Tema:</strong> <span class="placeholder">[NOMBRE DEL TEMA]</span></li>
+            <li><strong>Problema:</strong> <span class="placeholder">[QUÉ QUIEREN MEDIR]</span></li>
+            <li><strong>Objetivo:</strong> <span class="placeholder">[OBJETIVO GENERAL]</span></li>
+            <li><strong>Fuente de datos:</strong> <span class="placeholder">[API / ENCUESTAS / REGISTROS]</span></li>
+            <li><strong>Periodo:</strong> <span class="placeholder">[FECHAS / RANGO DE TIEMPO]</span></li>
+            <li><strong>Observación:</strong> <span class="placeholder">[NOTA IMPORTANTE DEL PROYECTO]</span></li>
+          </ul>
+        </article>
+      </section>
+
+      <section class="card full-width">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Fuente de datos</p>
+            <h3>Conexión y reemplazos pendientes</h3>
+          </div>
+        </div>
+
+        <div class="source-grid">
+          <div>
+            <span class="meta-label">Endpoint</span>
+            <code class="code-block">https://api.tudominio.cl/<span class="placeholder">[ENDPOINT]</span></code>
+          </div>
+          <div>
+            <span class="meta-label">Campos clave</span>
+            <code class="code-block">id, fecha, <span class="placeholder">[CAMPO1]</span>, <span class="placeholder">[CAMPO2]</span></code>
+          </div>
+          <div>
+            <span class="meta-label">Regla SLA</span>
+            <code class="code-block"><span class="placeholder">[DEFINE AQUÍ TU REGLA DE SLA]</span></code>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <script src="script.js"></script>
+  </body>
+  </html>
