@@ -75,20 +75,28 @@ function worstSlaColor(dimensions) {
 }
 
 function applyDemoValues() {
-  setText('kpi-nivel-oms', `${demoState.nivelOms.sedentario}% / ${demoState.nivelOms.insuficiente}% / ${demoState.nivelOms.activo}%`);
-  setText('kpi-minutos', '76 min');
-  setText('hero-minutos', '76 min');
-  setText('kpi-sedentarismo', '27%');
-  setText('kpi-tipo-actividad', 'Caminata (14-24)');
-  setText('kpi-correlacion', 'r=-0.42 (avg_horas=5.4)');
-  setText('hero-correlacion', 'r=-0.42');
-  setText('kpi-usa-app', '67%');
-  setText('hero-usa-app', '67%');
-  setText('kpi-sla', 'Semáforo AMARILLO');
-  setText('kpi-sla-desc', 'Completitud: yellow | Freshness: green | Error rate: green');
+  // Hero
   setText('hero-sla', 'SLA AMARILLO');
   setText('hero-sla-desc', 'Completitud: yellow • Freshness: green • Error rate: green');
+  setText('hero-minutos', '76 min');
+  setText('hero-usa-app', '67%');
+  setText('hero-correlacion', 'r = -0.42');
+
+  // KPIs
+  setText('kpi-nivel-oms', `${demoState.nivelOms.sedentario}% / ${demoState.nivelOms.insuficiente}% / ${demoState.nivelOms.activo}%`);
+  setText('kpi-minutos', '76 min');
+  setText('kpi-sedentarismo', '27%');
+  setText('kpi-tipo-actividad', 'Caminata (14-24)');
+  setText('kpi-correlacion', 'r = -0.42');
+  setText('kpi-correlacion-desc', 'Promedio horas sentado: 5.4 hrs');
+  setText('kpi-usa-app', '67%');
+  setText('kpi-sla', 'Semáforo AMARILLO');
+  setText('kpi-sla-desc', 'Completitud: yellow | Freshness: green | Error rate: green');
+
+  // Semáforo
   renderSlaSemaforo('yellow');
+
+  // Gráfico
   renderChart(
     demoState.rangoEtario.map((x) => x.rango),
     demoState.rangoEtario.map((x) => x.promedio_minutos),
@@ -113,6 +121,7 @@ async function init() {
     return;
   }
 
+  // KPI 1: Nivel OMS
   if (nivelRes && nivelRes.ok) {
     const rows = nivelRes.data || [];
     const findPct = (name) => {
@@ -125,18 +134,18 @@ async function init() {
     setText('kpi-nivel-oms', `${sedentario}% / ${insuficiente}% / ${activo}%`);
   }
 
+  // KPI 2: Minutos promedio
   if (rangoRes && rangoRes.ok) {
     const arr = rangoRes.data || [];
     const minutes = arr.map(x => Number(x.promedio_minutos || x.promedio || 0));
     const avg = minutes.length ? Math.round(minutes.reduce((s, v) => s + v, 0) / minutes.length) : 0;
     setText('kpi-minutos', `${avg} min`);
     setText('hero-minutos', `${avg} min`);
-    // update chart
     const labels = arr.map(x => x.rango || x.range || '-');
-    const data = minutes;
-    renderChart(labels, data);
+    renderChart(labels, minutes);
   }
 
+  // KPI 3: Sedentarismo
   if (sedentarismoRes && sedentarismoRes.ok) {
     const arr = sedentarismoRes.data || [];
     const pcts = arr.map(x => Number(x.porcentaje_sedentario || x.porcentaje || 0));
@@ -144,28 +153,36 @@ async function init() {
     setText('kpi-sedentarismo', `${overall}%`);
   }
 
+  // KPI 4: Tipo actividad
   if (tipoRes && tipoRes.ok) {
     const arr = tipoRes.data || [];
-    // API returns most-frequent per rango; to show an overall top, pick the row with highest total
     const top = arr.reduce((a, b) => (b.total > (a.total || 0) ? b : a), {});
     setText('kpi-tipo-actividad', `${top.tipo_actividad || top.activity || '-'} (${top.rango || ''})`);
   }
 
+  // KPI 5: Correlación
   if (correlRes && correlRes.ok) {
     const d = correlRes.data || {};
     const r = d.correlacion != null ? d.correlacion : d.r || 'N/A';
-    setText('kpi-correlacion', `r=${r} (avg_horas=${d.promedio_horas_sentado || 'N/A'})`);
-    setText('hero-correlacion', `r=${r}`);
+    setText('kpi-correlacion', `r = ${r}`);
+    setText('kpi-correlacion-desc', `Promedio horas sentado: ${d.promedio_horas_sentado || 'N/A'} hrs`);
+    setText('hero-correlacion', `r = ${r}`);
   }
 
+  // KPI 6: Uso de app
   if (usaAppRes && usaAppRes.ok) {
     const arr = usaAppRes.data || [];
-    const yes = arr.find(x => String(x.usa_app).toLowerCase().startsWith('s') || String(x.usa_app).toLowerCase().startsWith('y') || String(x.usa_app).toLowerCase() === 'sí');
+    const yes = arr.find(x => 
+      String(x.usa_app).toLowerCase().startsWith('s') || 
+      String(x.usa_app).toLowerCase().startsWith('y') || 
+      String(x.usa_app).toLowerCase() === 'sí'
+    );
     const pct = yes ? (yes.porcentaje || yes.percent || 0) : (arr[0] ? (arr[0].porcentaje || arr[0].percent || 0) : 0);
     setText('kpi-usa-app', `${pct}%`);
     setText('hero-usa-app', `${pct}%`);
   }
 
+  // KPI 7: SLA
   if (slaRes && slaRes.ok) {
     const dims = slaRes.data || [];
     if (dims.length) {
@@ -187,6 +204,7 @@ async function init() {
     renderSlaSemaforo('red');
   }
 
+  // Fallback: si algún KPI quedó vacío, aplicar demo
   if (!nivelRes || !rangoRes || !sedentarismoRes || !tipoRes || !correlRes || !usaAppRes || !slaRes) {
     if (!document.getElementById('kpi-minutos')?.textContent || document.getElementById('kpi-minutos').textContent === '--') {
       applyDemoValues();
@@ -201,26 +219,30 @@ function renderChart(labels, data) {
   mainChart = new Chart(ctx, {
     type: 'line',
     data: {
-      labels,
+      labels: labels.length ? labels : ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'],
       datasets: [{
         label: 'Minutos promedio',
-        data,
-        borderColor: '#0f766e',
-        backgroundColor: 'rgba(15,118,110,0.12)',
-        pointBackgroundColor: '#0f766e',
+        data: data.length ? data : [32, 45, 38, 52, 48, 60, 55],
+        borderColor: '#3ab795',
+        backgroundColor: 'rgba(58, 183, 149, 0.08)',
+        pointBackgroundColor: '#3ab795',
         pointBorderColor: '#ffffff',
         pointBorderWidth: 2,
         pointRadius: 4,
         pointHoverRadius: 6,
         tension: 0.38,
         fill: true,
+        borderWidth: 2.5,
       }]
     },
     options: {
       responsive: true,
-      maintainAspectRatio: false,
+      maintainAspectRatio: true,
+      aspectRatio: 3,
       plugins: {
-        legend: { display: false },
+        legend: {
+          display: false,
+        },
         tooltip: {
           backgroundColor: '#0f172a',
           titleColor: '#ffffff',
@@ -232,11 +254,11 @@ function renderChart(labels, data) {
       scales: {
         x: {
           grid: { display: false },
-          ticks: { color: '#64748b' }
+          ticks: { color: '#7b8ba8' }
         },
         y: {
-          grid: { color: 'rgba(15, 23, 42, 0.08)' },
-          ticks: { color: '#64748b' }
+          grid: { color: 'rgba(255,255,255,0.05)' },
+          ticks: { color: '#7b8ba8' }
         }
       }
     }
