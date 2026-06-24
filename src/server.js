@@ -1,33 +1,26 @@
-// server.js
-// Node.js + Express REST API para 'actividad_fisica' (MySQL)
-// Puerto: 5000
-
 const express = require('express');
 const cors = require('cors');
 const mysql = require('mysql2/promise');
-
 const fs = require('fs');
 const path = require('path');
+
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-// --- Configuración de la DB y servidor ---
 const PORT = process.env.PORT || 5000;
 const DB_CONFIG = {
   host: 'localhost',
   port: 3306,
   user: 'root',
-  password: '', // ajusta si tu root tiene contraseña
+  password: '',
   database: 'actividad_fisica',
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0,
 };
 
-// Tabla por defecto (se detectará automáticamente si existe otra)
-let TABLE = 'actividad'; // fallback
-
+let TABLE = 'actividad';
 let pool;
 
 async function initDb() {
@@ -35,25 +28,27 @@ async function initDb() {
   try {
     const conn = await pool.getConnection();
     conn.release();
-    console.log('Conectado a MySQL');
-    // Detectar tabla disponible: preferir 'actividad', luego 'respuestas'
+    console.log('✅ Conectado a MySQL');
     try {
       const candidates = ['actividad', 'respuestas'];
       for (const t of candidates) {
-        const r = await pool.execute(`SELECT COUNT(*) AS cnt FROM information_schema.tables WHERE table_schema = ? AND table_name = ?`, [DB_CONFIG.database, t]);
+        const r = await pool.execute(
+          `SELECT COUNT(*) AS cnt FROM information_schema.tables WHERE table_schema = ? AND table_name = ?`,
+          [DB_CONFIG.database, t]
+        );
         const cnt = r[0][0].cnt || 0;
         if (cnt > 0) {
           TABLE = t;
-          console.log(`Usando tabla: ${TABLE}`);
+          console.log(`📊 Usando tabla: ${TABLE}`);
           break;
         }
       }
       if (!TABLE) TABLE = 'actividad';
     } catch (err) {
-      console.warn('No se pudo detectar la tabla automáticamente:', err.message || err);
+      console.warn('No se pudo detectar la tabla automáticamente:', err.message);
     }
   } catch (err) {
-    console.error('Error conectando a MySQL:', err.message || err);
+    console.error('❌ Error conectando a MySQL:', err.message);
     process.exit(1);
   }
 }
@@ -63,24 +58,21 @@ async function query(sql, params = []) {
     const [rows] = await pool.execute(sql, params);
     return rows;
   } catch (err) {
-    console.error('DB query error', { message: err.message || err, sql, params });
+    console.error('DB query error', { message: err.message, sql, params });
     throw err;
   }
 }
 
-// Helper de errores
 function sendError(res, msg, code = 500) {
   return res.status(code).json({ ok: false, error: msg });
 }
 
-// -------------------- ENDPOINTS --------------------
+// ============ ENDPOINTS ============
 
-// 1) /api/kpi/nivel_oms
 app.get('/api/kpi/nivel_oms', async (req, res) => {
   try {
     const totalRows = await query(`SELECT COUNT(*) AS total FROM \`${TABLE}\``);
     const total = totalRows[0].total || 0;
-
     const sql = `
       SELECT nivel, COUNT(*) AS total, ROUND((COUNT(*) / NULLIF(?,0)) * 100, 2) AS porcentaje
       FROM (
@@ -102,7 +94,6 @@ app.get('/api/kpi/nivel_oms', async (req, res) => {
   }
 });
 
-// 2) /api/kpi/rango_etario
 app.get('/api/kpi/rango_etario', async (req, res) => {
   try {
     const sql = `
@@ -120,14 +111,17 @@ app.get('/api/kpi/rango_etario', async (req, res) => {
       GROUP BY rango
     `;
     const rows = await query(sql);
-    return res.json({ ok: true, data: rows });
+    const data = rows.map(row => ({
+      ...row,
+      promedio_minutos: parseFloat(row.promedio_minutos) || 0
+    }));
+    return res.json({ ok: true, data });
   } catch (err) {
     console.error('/api/kpi/rango_etario', err);
     return sendError(res, 'Error calculando rango_etario');
   }
 });
 
-// 3) /api/kpi/sedentarismo
 app.get('/api/kpi/sedentarismo', async (req, res) => {
   try {
     const sql = `
@@ -154,7 +148,6 @@ app.get('/api/kpi/sedentarismo', async (req, res) => {
   }
 });
 
-// 4) /api/kpi/tipo_actividad
 app.get('/api/kpi/tipo_actividad', async (req, res) => {
   try {
     const sql = `
@@ -183,7 +176,6 @@ app.get('/api/kpi/tipo_actividad', async (req, res) => {
   }
 });
 
-// 5) /api/kpi/correlacion
 app.get('/api/kpi/correlacion', async (req, res) => {
   try {
     const sql = `
@@ -222,7 +214,6 @@ app.get('/api/kpi/correlacion', async (req, res) => {
   }
 });
 
-// 6) /api/kpi/usa_app
 app.get('/api/kpi/usa_app', async (req, res) => {
   try {
     const totalRows = await query(`SELECT COUNT(*) AS total FROM \`${TABLE}\``);
@@ -245,63 +236,89 @@ app.get('/api/kpi/usa_app', async (req, res) => {
   }
 });
 
-// 7) /api/sla
 app.get('/api/sla', async (req, res) => {
   try {
     const requiredCols = ['minutos_actividad_semana','edad','tipo_actividad','horas_sentado_dia','percepcion_salud'];
     const notNullExpr = requiredCols.map(c => `\`${c}\` IS NOT NULL`).join(' AND ');
     const sqlCompleteness = `
-      SELECT COUNT(*) AS total, SUM(CASE WHEN ${notNullExpr} THEN 1 ELSE 0 END) AS complete_count FROM \`${TABLE}\`
+      SELECT COUNT(*) AS total, 
+             SUM(CASE WHEN ${notNullExpr} THEN 1 ELSE 0 END) AS complete_count 
+      FROM \`${TABLE}\`
     `;
     const compRow = (await query(sqlCompleteness))[0];
     const total = compRow.total || 0;
     const completeCount = compRow.complete_count || 0;
-    const completenessPct = total === 0 ? null : Number(((completeCount/total) * 100).toFixed(2));
+    const completenessPct = total === 0 ? 0 : Number(((completeCount/total) * 100).toFixed(2));
 
-    // Freshness
     let freshnessDays = null;
     try {
-      const freshRow = (await query(`SELECT MAX(updated_at) AS last_update FROM \`${TABLE}\``))[0];
+      const freshRow = (await query(`SELECT MAX(fecha_encuesta) AS last_update FROM \`${TABLE}\``))[0];
       if (freshRow && freshRow.last_update) {
-        const d = (await query(`SELECT DATEDIFF(NOW(), ?) AS days`, [freshRow.last_update]))[0];
-        freshnessDays = d.days != null ? Number(d.days) : null;
+        const d = (await query(`SELECT DATEDIFF(CURDATE(), ?) AS days`, [freshRow.last_update]))[0];
+        freshnessDays = d.days != null ? Number(d.days) : 0;
       }
     } catch (err) {
       freshnessDays = null;
     }
 
-    // Error rate
-    let errorRatePct = null;
+    let errorRatePct = 0;
     try {
-      const errRow = (await query(`SELECT SUM(CASE WHEN error_flag = 1 THEN 1 ELSE 0 END) AS errors, COUNT(*) AS total FROM \`${TABLE}\``))[0];
-      if (errRow && errRow.total > 0) errorRatePct = Number(((errRow.errors / errRow.total) * 100).toFixed(4)); else errorRatePct = 0;
+      const errRow = (await query(`
+        SELECT 
+          SUM(CASE WHEN minutos_actividad_semana < 0 OR horas_sentado_dia > 18 OR horas_sentado_dia < 0 THEN 1 ELSE 0 END) AS errors, 
+          COUNT(*) AS total 
+        FROM \`${TABLE}\`
+      `))[0];
+      if (errRow && errRow.total > 0) {
+        errorRatePct = Number(((errRow.errors / errRow.total) * 100).toFixed(2));
+      } else {
+        errorRatePct = 0;
+      }
     } catch (err) {
-      errorRatePct = null;
+      errorRatePct = 0;
     }
 
     function colorForCompleteness(value) {
-      if (value === null) return 'red';
+      if (value === null || value === undefined) return 'red';
       if (value >= 95) return 'green';
       if (value >= 90) return 'yellow';
       return 'red';
     }
     function colorForFreshness(days) {
-      if (days === null) return 'red';
+      if (days === null || days === undefined) return 'red';
       if (days <= 21) return 'green';
       if (days <= 42) return 'yellow';
       return 'red';
     }
     function colorForErrorRate(pct) {
-      if (pct === null) return 'red';
+      if (pct === null || pct === undefined) return 'red';
       if (pct <= 1) return 'green';
       if (pct <= 5) return 'yellow';
       return 'red';
     }
 
     const dimensions = [
-      { dimension: 'Completitud', valor: completenessPct, umbral: '>= 95%', color: colorForCompleteness(completenessPct), descripcion: completenessPct === null ? 'Datos insuficientes' : `${completeCount}/${total} filas completas (${completenessPct}%)` },
-      { dimension: 'Freshness (días)', valor: freshnessDays, umbral: '<= 21 días', color: colorForFreshness(freshnessDays), descripcion: freshnessDays === null ? 'No hay updated_at' : `Última actualización hace ${freshnessDays} días` },
-      { dimension: 'Error Rate', valor: errorRatePct, umbral: '<= 1%', color: colorForErrorRate(errorRatePct), descripcion: errorRatePct === null ? 'No hay error_flag' : `${errorRatePct}% errores` }
+      { 
+        dimension: 'Completitud', 
+        valor: completenessPct, 
+        umbral: '>= 95%', 
+        color: colorForCompleteness(completenessPct), 
+        descripcion: `${completeCount}/${total} filas completas (${completenessPct}%)` 
+      },
+      { 
+        dimension: 'Freshness', 
+        valor: freshnessDays, 
+        umbral: '<= 21 días', 
+        color: colorForFreshness(freshnessDays), 
+        descripcion: freshnessDays !== null ? `Última encuesta hace ${freshnessDays} días` : 'No hay datos' 
+      },
+      { 
+        dimension: 'Error Rate', 
+        valor: errorRatePct, 
+        umbral: '<= 1%', 
+        color: colorForErrorRate(errorRatePct), 
+        descripcion: `${errorRatePct}% errores en datos` 
+      }
     ];
 
     return res.json({ ok: true, data: dimensions });
@@ -311,19 +328,17 @@ app.get('/api/sla', async (req, res) => {
   }
 });
 
-// Servir frontend estático si existe index.html en la raíz del proyecto
 const frontIndex = path.join(__dirname, '..', 'index.html');
 if (fs.existsSync(frontIndex)) {
   app.use('/', express.static(path.join(__dirname, '..')));
-  console.log('Servirá frontend desde / (index.html detectado)');
+  console.log('📁 Servirá frontend desde / (index.html detectado)');
 }
 
-// 404
 app.use((req, res) => res.status(404).json({ ok: false, error: 'Endpoint not found' }));
 
-// Iniciar servidor después de inicializar DB
 initDb().then(() => {
-  app.listen(PORT, () => console.log(`REST API server listening on http://localhost:${PORT}`));
+  app.listen(PORT, () => console.log(`🚀 REST API server listening on http://localhost:${PORT}`));
 }).catch(err => {
-  console.error('No se pudo iniciar DB', err); process.exit(1);
+  console.error('No se pudo iniciar DB', err);
+  process.exit(1);
 });

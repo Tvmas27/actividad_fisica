@@ -3,12 +3,11 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Atlas KPI · Actividad Física</title>
+  <title>Dashboard · Actividad Física</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="styles.css" />
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
   <div class="dashboard">
@@ -18,7 +17,7 @@
       <div class="hero-copy">
         <div class="badge-group">
           <span class="pill pill-live">⚡ API conectada</span>
-          <span class="pill">Simulación de datos en tiempo real</span>
+          <span class="pill">Datos en tiempo real</span>
         </div>
         <p class="eyebrow">Proyecto de actividad física</p>
         <h1>Dashboard de <span class="highlight">Registros de actividad Física</span></h1>
@@ -28,7 +27,6 @@
           <a class="btn btn-secondary" href="#sla">Revisar SLA</a>
         </div>
       </div>
-
       <div class="hero-panel">
         <div class="hero-panel-card">
           <span class="meta">Estado general</span>
@@ -36,23 +34,14 @@
           <p id="hero-sla-desc">Conectando con la API</p>
         </div>
         <div class="hero-stats">
-          <div>
-            <span class="meta">Promedio minutos</span>
-            <strong id="hero-minutos">--</strong>
-          </div>
-          <div>
-            <span class="meta">Uso de app</span>
-            <strong id="hero-usa-app">--</strong>
-          </div>
-          <div>
-            <span class="meta">Correlación</span>
-            <strong id="hero-correlacion">--</strong>
-          </div>
+          <div><span class="meta">Promedio minutos</span><strong id="hero-minutos">--</strong></div>
+          <div><span class="meta">Uso de app</span><strong id="hero-usa-app">--</strong></div>
+          <div><span class="meta">Correlación</span><strong id="hero-correlacion">--</strong></div>
         </div>
       </div>
     </section>
 
-    <!-- KPI GRID -->
+    <!-- KPI GRID (7 TARJETAS) -->
     <section id="kpis" class="kpi-grid">
       <article class="kpi-card">
         <div class="kpi-top"><span class="kpi-label">KPI 1</span><span class="kpi-chip">OMS</span></div>
@@ -60,46 +49,40 @@
         <p>Distribución entre sedentario, insuficiente y activo</p>
         <div class="kpi-foot">Indicador principal del tablero</div>
       </article>
-
       <article class="kpi-card">
         <div class="kpi-top"><span class="kpi-label">KPI 2</span><span class="kpi-chip">Edad</span></div>
         <h2><span id="kpi-minutos" class="placeholder">[Minutos promedio]</span></h2>
         <p>Promedio de actividad por rango etario</p>
         <div class="kpi-foot">Lectura rápida por segmento</div>
       </article>
-
       <article class="kpi-card">
         <div class="kpi-top"><span class="kpi-label">KPI 3</span><span class="kpi-chip">Sedentarismo</span></div>
         <h2><span id="kpi-sedentarismo" class="placeholder">[% sedentarios]</span></h2>
         <p>Porcentaje de personas sedentarias por rango</p>
         <div class="kpi-foot">Comparación entre grupos</div>
       </article>
-
       <article class="kpi-card">
         <div class="kpi-top"><span class="kpi-label">KPI 4</span><span class="kpi-chip">Actividad</span></div>
         <h2><span id="kpi-tipo-actividad" class="placeholder">[Tipo actividad]</span></h2>
         <p>Actividad más frecuente detectada</p>
         <div class="kpi-foot">Patrón dominante del dataset</div>
       </article>
-
       <article class="kpi-card">
         <div class="kpi-top"><span class="kpi-label">KPI 5</span><span class="kpi-chip">Relación</span></div>
         <h2><span id="kpi-correlacion" class="placeholder">[r = 0.0]</span></h2>
         <p>Horas sentadas versus percepción de salud</p>
         <div class="kpi-foot">Interpretación estadística</div>
       </article>
-
       <article class="kpi-card">
         <div class="kpi-top"><span class="kpi-label">KPI 6</span><span class="kpi-chip">App</span></div>
         <h2><span id="kpi-usa-app" class="placeholder">[% que usa app]</span></h2>
         <p>Porcentaje de usuarios que usa la app</p>
         <div class="kpi-foot">Indicador complementario</div>
       </article>
-
       <article id="sla" class="kpi-card kpi-sla">
         <div class="kpi-top"><span class="kpi-label">KPI 7</span><span class="kpi-chip">SLA</span></div>
         <h2><span id="kpi-sla" class="placeholder">[Semáforo SLA]</span></h2>
-        <div id="kpi-sla-semaforo" class="semaforo" aria-label="Semáforo SLA">
+        <div id="kpi-sla-semaforo" class="semaforo">
           <span class="luz" data-color="red"></span>
           <span class="luz" data-color="yellow"></span>
           <span class="luz" data-color="green"></span>
@@ -109,84 +92,142 @@
       </article>
     </section>
 
-    <!-- TABLA KPI -->
-    <section class="card card-soft">
-      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:16px;">
+    <!-- SLIDERS -->
+    <section class="card card-soft" style="border-left:4px solid #2b8f7a;">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:20px;">
         <div>
-          <p class="eyebrow" style="color:#6b8c9c;">Vista comparativa</p>
-          <h3 style="color:#fff; font-weight:600; font-size:1.3rem;">Composición del tablero y cobertura requerida</h3>
+          <p class="eyebrow" style="color:#6b8c9c;">Simulación en tiempo real</p>
+          <h3 style="color:#fff;font-weight:600;font-size:1.3rem;">🎛️ Ajusta los indicadores de actividad física</h3>
         </div>
-        <span class="pill" style="background:#0f2e2a; border-color:#2b8f7a; color:#7ee0c4;">Cobertura completa</span>
+        <span class="pill" style="background:#0f2e2a;border-color:#2b8f7a;color:#7ee0c4;">Interactivo</span>
       </div>
-      <div class="table-wrap">
-        <table class="kpi-table">
-          <thead><tr><th>#</th><th>KPI</th><th>Tipo</th><th>¿Obligatorio?</th></tr></thead>
-          <tbody>
-            <tr><td>1</td><td>% nivel OMS (sedentario/insuficiente/activo)</td><td>Principal</td><td>✅</td></tr>
-            <tr><td>2</td><td>Minutos promedio por rango etario</td><td>Principal</td><td>✅</td></tr>
-            <tr><td>3</td><td>% sedentarios por rango etario</td><td>Principal</td><td>✅</td></tr>
-            <tr><td>4</td><td>Tipo actividad más frecuente</td><td>Principal</td><td>✅</td></tr>
-            <tr><td>5</td><td>Correlación horas vs salud</td><td>Principal</td><td>✅</td></tr>
-            <tr><td>6</td><td>% que usa app</td><td>Complementario</td><td>-</td></tr>
-            <tr><td>7</td><td>Semáforo SLA</td><td>SLA</td><td>✅ obligatorio</td></tr>
-          </tbody>
-        </table>
+      <!-- Slider 1 -->
+      <div style="margin-bottom:20px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <div><span style="color:#fff;font-weight:600;">Personas Activas</span><span style="color:#6b8c9c;font-size:0.8rem;margin-left:12px;">% que cumple recomendación OMS (≥150 min/semana)</span></div>
+          <span id="slider-value-1" style="color:#fff;font-weight:700;font-size:1.2rem;">25%</span>
+        </div>
+        <input type="range" id="slider-1" min="0" max="100" value="25" style="width:100%;margin:8px 0;">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <span id="slider-status-1" style="color:#ef4444;font-size:0.85rem;">Bajo — rojo</span>
+          <button onclick="showSQL('nivel_oms')" style="background:rgba(255,255,255,0.06);color:#7ee0c4;border:1px solid #2b8f7a;padding:6px 16px;border-radius:8px;cursor:pointer;font-size:0.75rem;">Ver query SQL →</button>
+        </div>
+      </div>
+      <!-- Slider 2 -->
+      <div style="margin-bottom:20px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <div><span style="color:#fff;font-weight:600;">Completitud de Datos</span><span style="color:#6b8c9c;font-size:0.8rem;margin-left:12px;">% de registros completos en la encuesta</span></div>
+          <span id="slider-value-2" style="color:#fff;font-weight:700;font-size:1.2rem;">100%</span>
+        </div>
+        <input type="range" id="slider-2" min="0" max="100" value="100" style="width:100%;margin:8px 0;">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <span id="slider-status-2" style="color:#10b981;font-size:0.85rem;">Completo — verde</span>
+          <button onclick="showSQL('completitud')" style="background:rgba(255,255,255,0.06);color:#7ee0c4;border:1px solid #2b8f7a;padding:6px 16px;border-radius:8px;cursor:pointer;font-size:0.75rem;">Ver query SQL →</button>
+        </div>
+      </div>
+      <!-- Slider 3 -->
+      <div>
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <div><span style="color:#fff;font-weight:600;">Freshness</span><span style="color:#6b8c9c;font-size:0.8rem;margin-left:12px;">Días desde la última encuesta</span></div>
+          <span id="slider-value-3" style="color:#fff;font-weight:700;font-size:1.2rem;">17 días</span>
+        </div>
+        <input type="range" id="slider-3" min="0" max="60" value="17" style="width:100%;margin:8px 0;">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <span id="slider-status-3" style="color:#10b981;font-size:0.85rem;">Actualizado — verde</span>
+          <button onclick="showSQL('freshness')" style="background:rgba(255,255,255,0.06);color:#7ee0c4;border:1px solid #2b8f7a;padding:6px 16px;border-radius:8px;cursor:pointer;font-size:0.75rem;">Ver query SQL →</button>
+        </div>
+      </div>
+      <!-- SLA Global -->
+      <div style="margin-top:20px;padding-top:20px;border-top:1px solid #2a2a3e;">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
+          <div>
+            <span style="color:#6b8c9c;font-size:0.75rem;text-transform:uppercase;letter-spacing:0.1em;">Estado SLA global del sistema</span>
+            <div style="display:flex;gap:20px;margin-top:8px;flex-wrap:wrap;">
+              <span><span style="color:#6b8c9c;">Activos:</span> <span id="sla-global-1" style="color:#fff;font-weight:700;">25%</span></span>
+              <span><span style="color:#6b8c9c;">Completitud:</span> <span id="sla-global-2" style="color:#fff;font-weight:700;">100%</span></span>
+              <span><span style="color:#6b8c9c;">Freshness:</span> <span id="sla-global-3" style="color:#fff;font-weight:700;">17 días</span></span>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px;">
+            <span style="color:#6b8c9c;">Global:</span>
+            <span id="sla-global-color" style="background:#10b981;color:#fff;padding:6px 16px;border-radius:20px;font-weight:700;font-size:0.9rem;">Verde</span>
+          </div>
+        </div>
+        <div style="margin-top:12px;display:flex;gap:16px;flex-wrap:wrap;font-size:0.8rem;color:#6b8c9c;">
+          <span><span style="color:#10b981;">●</span> Verde = cumple SLA</span>
+          <span><span style="color:#f59e0b;">●</span> Amarillo = advertencia</span>
+          <span><span style="color:#ef4444;">●</span> Rojo = incumplimiento</span>
+          <span style="margin-left:auto;font-size:0.7rem;color:#4a5a72;">Mueve los sliders para simular cambios</span>
+        </div>
       </div>
     </section>
 
     <!-- CHART + INFO -->
     <div class="two-col">
+      <!-- TARJETA DE LISTA (estilo imagen) -->
       <article class="card chart-card">
-        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:12px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:12px;">
           <div>
-            <p class="eyebrow" style="color:#6b8c9c;">Tendencia</p>
-            <h3 style="color:#fff; font-weight:600; font-size:1.2rem;">Evolución del indicador principal</h3>
+            <p class="eyebrow" style="color:#6b8c9c;">Actividad semanal</p>
+            <h3 style="color:#fff;font-weight:600;font-size:1.2rem;">Minutos promedio por rango etario</h3>
           </div>
-          <span class="pill" style="background:#262638; border-color:#3d3d58; color:#bcc6dc;">[TU VARIABLE PRINCIPAL]</span>
+          <span class="pill" style="background:#262638;border-color:#3d3d58;color:#bcc6dc;">Según OMS</span>
         </div>
-        <canvas id="mainChart" height="140"></canvas>
+        <div id="rango-lista" class="rango-lista">
+          <!-- Los datos se renderizan acá desde script.js -->
+        </div>
       </article>
 
       <article class="card info-card">
-        <div style="margin-bottom:16px;">
-          <p class="eyebrow" style="color:#6b8c9c;">Detalles</p>
-          <h3 style="color:#fff; font-weight:600; font-size:1.2rem;">Espacios que debes completar</h3>
-        </div>
+        <div style="margin-bottom:16px;"><p class="eyebrow" style="color:#6b8c9c;">Detalles</p><h3 style="color:#fff;font-weight:600;font-size:1.2rem;">Información del proyecto</h3></div>
         <ul class="todo-list">
-          <li><strong>Tema:</strong> <span class="placeholder">[NOMBRE DEL TEMA]</span></li>
-          <li><strong>Problema:</strong> <span class="placeholder">[QUÉ QUIEREN MEDIR]</span></li>
-          <li><strong>Objetivo:</strong> <span class="placeholder">[OBJETIVO GENERAL]</span></li>
-          <li><strong>Fuente de datos:</strong> <span class="placeholder">[API / ENCUESTAS / REGISTROS]</span></li>
-          <li><strong>Periodo:</strong> <span class="placeholder">[FECHAS / RANGO DE TIEMPO]</span></li>
-          <li><strong>Observación:</strong> <span class="placeholder">[NOTA IMPORTANTE]</span></li>
+          <li><strong>Tema:</strong> <span style="color:#d4def0;">Actividad Física y Sedentarismo</span></li>
+          <li><strong>Problema:</strong> <span style="color:#d4def0;">Alto sedentarismo en Chile (>80% según INE)</span></li>
+          <li><strong>Objetivo:</strong> <span style="color:#d4def0;">Medir nivel real de actividad física por rango etario</span></li>
+          <li><strong>Fuente de datos:</strong> <span style="color:#d4def0;">Encuesta Google Forms · 36 respuestas REALES</span></li>
+          <li><strong>Periodo:</strong> <span style="color:#d4def0;">Junio 2026</span></li>
+          <li><strong>Observación:</strong> <span style="color:#d4def0;">Datos recolectados de familiares, vecinos y compañeros</span></li>
         </ul>
       </article>
     </div>
 
-    <!-- FOOTER / FUENTE -->
+    <!-- FOOTER -->
     <section class="card card-soft" style="padding:24px 28px;">
-      <div style="display:flex; justify-content:space-between; flex-wrap:wrap; gap:16px;">
-        <div>
-          <p class="eyebrow" style="color:#6b8c9c;">Fuente de datos</p>
-          <h3 style="color:#fff; font-weight:600; font-size:1.1rem;">Conexión y reemplazos pendientes</h3>
-        </div>
+      <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:16px;">
+        <div><p class="eyebrow" style="color:#6b8c9c;">Fuente de datos</p><h3 style="color:#fff;font-weight:600;font-size:1.1rem;">Conexión y configuración</h3></div>
       </div>
-      <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px,1fr)); gap:16px; margin-top:12px;">
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-top:12px;">
         <div>
           <span class="meta">Endpoint</span>
-          <code style="display:block; background:#11111c; padding:10px 14px; border-radius:12px; border:1px solid #26263a; color:#d4def0; font-size:0.8rem; white-space:nowrap; overflow-x:auto;">https://api.tudominio.cl/<span class="placeholder">[ENDPOINT]</span></code>
+          <code style="display:block;background:#11111c;padding:10px 14px;border-radius:12px;border:1px solid #26263a;color:#d4def0;font-size:0.8rem;white-space:nowrap;overflow-x:auto;">http://localhost:5000/api/kpi/nivel_oms</code>
         </div>
         <div>
           <span class="meta">Campos clave</span>
-          <code style="display:block; background:#11111c; padding:10px 14px; border-radius:12px; border:1px solid #26263a; color:#d4def0; font-size:0.8rem;">id, fecha, <span class="placeholder">[CAMPO1]</span>, <span class="placeholder">[CAMPO2]</span></code>
+          <code style="display:block;background:#11111c;padding:10px 14px;border-radius:12px;border:1px solid #26263a;color:#d4def0;font-size:0.8rem;">minutos_actividad_semana, horas_sentado_dia, edad, genero, tipo_actividad</code>
         </div>
         <div>
           <span class="meta">Regla SLA</span>
-          <code style="display:block; background:#11111c; padding:10px 14px; border-radius:12px; border:1px solid #26263a; color:#d4def0; font-size:0.8rem;"><span class="placeholder">[DEFINE AQUÍ TU REGLA DE SLA]</span></code>
+          <code style="display:block;background:#11111c;padding:10px 14px;border-radius:12px;border:1px solid #26263a;color:#d4def0;font-size:0.65rem;line-height:1.8;">
+Completitud: >= 95% (verde) | 90-94% (amarillo) | < 90% (rojo)
+Freshness: <= 21 días (verde) | 22-42 días (amarillo) | > 42 días (rojo)
+Error Rate: <= 1% (verde) | 1-5% (amarillo) | > 5% (rojo)
+          </code>
         </div>
       </div>
     </section>
 
+  </div>
+
+  <!-- MODAL SQL -->
+  <div id="sqlModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.8);z-index:1000;justify-content:center;align-items:center;">
+    <div style="background:#1a1a2b;border-radius:20px;padding:30px;max-width:800px;width:90%;max-height:80vh;overflow-y:auto;border:1px solid #3d3d58;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+        <h3 style="color:#fff;font-family:'Space Grotesk',sans-serif;">📊 Query SQL</h3>
+        <button onclick="closeSQL()" style="background:none;border:none;color:#fff;font-size:28px;cursor:pointer;">✕</button>
+      </div>
+      <pre id="sqlContent" style="background:#0b0b12;padding:20px;border-radius:12px;color:#d4def0;font-family:'Courier New',monospace;font-size:13px;overflow-x:auto;border:1px solid #26263a;white-space:pre-wrap;word-wrap:break-word;"></pre>
+      <button onclick="closeSQL()" style="margin-top:20px;background:#1f8b7a;color:#fff;border:none;padding:12px 24px;border-radius:12px;cursor:pointer;">Cerrar</button>
+    </div>
   </div>
 
   <script src="script.js"></script>
