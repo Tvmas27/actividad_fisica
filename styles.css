@@ -260,11 +260,7 @@ h1 {
   box-shadow: 0 0 10px #10b98166;
 }
 
-/* Tabla */
-.table-wrap {
-  overflow-x: auto;
-  margin-top: 6px;
-}
+/* Tablas */
 .kpi-table {
   width: 100%;
   border-collapse: collapse;
@@ -286,37 +282,6 @@ h1 {
 }
 .kpi-table tr:last-child td {
   border-bottom: none;
-}
-
-/* Lista de rangos */
-.rango-lista {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  margin-top: 4px;
-}
-.rango-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 8px 0;
-  border-bottom: 1px solid rgba(255,255,255,0.05);
-}
-.rango-item:last-child {
-  border-bottom: none;
-}
-.rango-nombre {
-  font-size: 1rem;
-  font-weight: 500;
-  color: #d4def0;
-}
-.rango-valor {
-  font-size: 1rem;
-  font-weight: 600;
-  color: #fff;
-  background: rgba(255,255,255,0.06);
-  padding: 2px 14px;
-  border-radius: 20px;
 }
 
 /* Info card */
