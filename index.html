@@ -1,185 +1,177 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Dashboard · Actividad Física</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css" />
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dashboard · Actividad Física</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="styles.css" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
 <div class="dashboard">
 
-  <!-- HERO -->
-  <section class="card hero">
-    <div class="hero-copy">
-      <div class="badge-group">
-        <span class="pill pill-live">⚡ Dashboard</span>
-        <span class="pill">Datos en tiempo real</span>
-      </div>
-      <h1>Dashboard de <span class="highlight">Registros de Actividad Física</span></h1>
-      <p class="lead">Situación "vida deportiva" a través de una encuesta.</p>
-      <div class="hero-actions">
-        <a class="btn btn-primary" href="#kpis">Ver KPIs</a>
-        <a class="btn btn-secondary" href="#sla">Revisar SLA</a>
-      </div>
-    </div>
-    <div class="hero-panel">
-      <div class="hero-panel-card">
-        <span class="meta">Estado general</span>
-        <p style="color:#e2e8f0; font-size:0.9rem; line-height:1.5; margin:6px 0 10px 0;">
-          Este dashboard presenta los resultados de la encuesta mostrando la vida deportiva de la gente que colaboró en este proyecto.
-        </p>
-        <div style="display:flex;flex-wrap:wrap;gap:16px;margin-top:10px;border-top:1px solid rgba(255,255,255,0.06);padding-top:10px;">
-          <div><span style="color:#8495b0;font-size:0.65rem;text-transform:uppercase;display:block;">Encuestas</span><span style="color:#fff;font-weight:700;font-size:1.1rem;" id="hero-total-registros">--</span></div>
-          <div><span style="color:#8495b0;font-size:0.65rem;text-transform:uppercase;display:block;">Período</span><span style="color:#fff;font-weight:700;font-size:1.1rem;" id="hero-periodo">--</span></div>
+    <!-- HERO -->
+    <section class="card hero">
+        <div class="hero-copy">
+            <div class="badge-group">
+                <span class="pill pill-live">Dashboard</span>
+                <span class="pill">Datos en tiempo real</span>
+            </div>
+            <h1>Dashboard de <span class="highlight">Registros de Actividad Física</span></h1>
+            <p class="lead">Situación "vida deportiva" a través de una encuesta.</p>
+            <div class="hero-actions">
+                <a class="btn btn-primary" href="#kpis">Ver KPIs</a>
+                <a class="btn btn-secondary" href="#sla">Revisar SLA</a>
+            </div>
         </div>
-      </div>
-      <div class="hero-stats">
-        <div><span class="meta">Promedio minutos</span><strong id="hero-minutos">--</strong></div>
-        <div><span class="meta">Correlación</span><strong id="hero-correlacion">--</strong></div>
-        <div><span class="meta">Uso de app</span><strong id="hero-usa-app">--</strong></div>
-      </div>
-    </div>
-  </section>
-
-  <!-- KPIS -->
-  <section id="kpis" class="kpi-grid">
-    <article class="kpi-card"><div class="kpi-top"><span class="kpi-label">KPI 1</span><span class="kpi-chip">OMS</span></div><h2 id="kpi-nivel-oms">Cargando...</h2><p>% de encuestados por nivel OMS</p><div class="kpi-foot">Sedentario / Insuficiente / Activo</div></article>
-    <article class="kpi-card"><div class="kpi-top"><span class="kpi-label">KPI 2</span><span class="kpi-chip">Rango</span></div><h2 id="kpi-minutos-rango">Cargando...</h2><p>Minutos promedio por rango etario</p><div class="kpi-foot">Ver gráfico</div></article>
-    <article class="kpi-card"><div class="kpi-top"><span class="kpi-label">KPI 3</span><span class="kpi-chip">Sedentarismo</span></div><h2 id="kpi-sedentarismo-rango">Cargando...</h2><p>% sedentarios por rango etario</p><div class="kpi-foot">Ver gráfico</div></article>
-    <article class="kpi-card"><div class="kpi-top"><span class="kpi-label">KPI 4</span><span class="kpi-chip">Actividad</span></div><h2 id="kpi-tipo-actividad">Cargando...</h2><p>Actividad más frecuente por rango</p><div class="kpi-foot">Ver tabla</div></article>
-    <article class="kpi-card"><div class="kpi-top"><span class="kpi-label">KPI 5</span><span class="kpi-chip">Relación</span></div><h2 id="kpi-correlacion">Cargando...</h2><p>Correlación horas sentado vs salud</p><div id="correlacion-semaforo" class="semaforo"><span class="luz" data-color="red"></span><span class="luz" data-color="yellow"></span><span class="luz" data-color="green"></span></div><div class="kpi-foot">Semáforo</div></article>
-    <article class="kpi-card"><div class="kpi-top"><span class="kpi-label">KPI 6</span><span class="kpi-chip">App</span></div><h2 id="kpi-usa-app">Cargando...</h2><p>% que usa app</p><div class="kpi-foot">Sí / No</div></article>
-    <article class="kpi-card kpi-sla"><div class="kpi-top"><span class="kpi-label">KPI 7</span><span class="kpi-chip">SLA</span></div><h2 id="kpi-sla">Cargando...</h2><div id="kpi-sla-semaforo" class="semaforo"><span class="luz" data-color="red"></span><span class="luz" data-color="yellow"></span><span class="luz" data-color="green"></span></div><p id="kpi-sla-desc">Cargando...</p><div class="kpi-foot">Completitud / Freshness / Error Rate</div></article>
-  </section>
-
-  <!-- GRÁFICO + TABLA KPI 4 -->
-  <div class="two-col">
-    <article class="card chart-card">
-      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:12px;">
-        <div><p class="eyebrow" style="color:#6b8c9c;">Actividad semanal</p><h3 style="color:#fff;font-weight:600;font-size:1.2rem;">KPI 2 y 3: Minutos y % sedentarios</h3></div>
-        <span class="pill" style="background:#262638;border-color:#3d3d58;color:#bcc6dc;">Según OMS</span>
-      </div>
-      <canvas id="chartRangos" height="200"></canvas>
-    </article>
-    <article class="card info-card">
-      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:12px;">
-        <div><p class="eyebrow" style="color:#6b8c9c;">Análisis por rango</p><h3 style="color:#fff;font-weight:600;font-size:1.2rem;">KPI 4: Actividad frecuente</h3></div>
-        <span class="pill" style="background:#0f2e2a;border-color:#2b8f7a;color:#7ee0c4;">Datos por rango</span>
-      </div>
-      <div style="overflow-x:auto;">
-        <table class="kpi-table"><thead><tr><th>Rango</th><th>Actividad frecuente</th></tr></thead><tbody id="tabla-actividad-body"><tr><td colspan="2">Cargando...</td></tr></tbody></table>
-      </div>
-    </article>
-  </div>
-
-  <!-- TABLA COMPLETA -->
-  <section class="card card-soft">
-    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:16px;">
-      <div><p class="eyebrow" style="color:#6b8c9c;">Análisis completo</p><h3 style="color:#fff;font-weight:600;font-size:1.2rem;">KPI 2, 3 y 4: Minutos, sedentarismo y actividad</h3></div>
-      <span class="pill" style="background:#0f2e2a;border-color:#2b8f7a;color:#7ee0c4;">Datos por rango</span>
-    </div>
-    <div style="overflow-x:auto;">
-      <table class="kpi-table">
-        <thead><tr><th>Rango</th><th>Minutos (KPI 2)</th><th>% Sedentarios (KPI 3)</th><th>Actividad (KPI 4)</th></tr></thead>
-        <tbody id="tabla-rangos"><tr><td colspan="4">Cargando...</td></tr></tbody>
-      </table>
-    </div>
-  </section>
-
-  <!-- MONITOREO EN TIEMPO REAL -->
-  <section class="card card-soft" style="border-left:4px solid #2b8f7a;">
-    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:20px;">
-      <div>
-        <p class="eyebrow" style="color:#6b8c9c;">Monitoreo en tiempo real</p>
-        <h3 style="color:#fff;font-weight:600;font-size:1.3rem;">Filtros interactivos</h3>
-      </div>
-      <span class="pill" style="background:#0f2e2a;border-color:#2b8f7a;color:#7ee0c4;">Datos actualizados</span>
-    </div>
-
-    <!-- Filtros interactivos (sliders con efecto real) -->
-    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:16px;">
-      <!-- Slider 1: Personas Activas (Filtra el gráfico y la tabla) -->
-      <div>
-        <div style="display:flex;justify-content:space-between;align-items:center;">
-          <div><span style="color:#fff;font-weight:600;">Personas Activas</span><span style="color:#6b8c9c;font-size:0.7rem;display:block;">% cumple OMS</span></div>
-          <span id="slider-value-1" style="color:#fff;font-weight:700;font-size:1.1rem;">25%</span>
+        <div class="hero-panel">
+            <div class="hero-panel-card">
+                <span class="meta">Estado general</span>
+                <p class="hero-desc">Este dashboard presenta los resultados de la encuesta mostrando la vida deportiva de la gente que colaboró en este proyecto.</p>
+                <div class="hero-metrics">
+                    <div><span>Encuestas</span><strong id="hero-total-registros">--</strong></div>
+                    <div><span>Período</span><strong id="hero-periodo">--</strong></div>
+                </div>
+            </div>
+            <div class="hero-stats">
+                <div><span class="meta">Promedio minutos</span><strong id="hero-minutos">--</strong></div>
+                <div><span class="meta">Correlación</span><strong id="hero-correlacion">--</strong></div>
+                <div><span class="meta">Uso de app</span><strong id="hero-usa-app">--</strong></div>
+            </div>
         </div>
-        <input type="range" id="slider-1" min="0" max="100" value="25" style="width:100%;margin:6px 0;">
-        <div style="display:flex;justify-content:space-between;align-items:center;">
-          <span id="slider-status-1" style="color:#ef4444;font-size:0.75rem;">Bajo — rojo</span>
-        </div>
-      </div>
+    </section>
 
-      <!-- Slider 2: Completitud (Filtra umbral de calidad) -->
-      <div>
-        <div style="display:flex;justify-content:space-between;align-items:center;">
-          <div><span style="color:#fff;font-weight:600;">Completitud</span><span style="color:#6b8c9c;font-size:0.7rem;display:block;">% registros completos</span></div>
-          <span id="slider-value-2" style="color:#fff;font-weight:700;font-size:1.1rem;">100%</span>
-        </div>
-        <input type="range" id="slider-2" min="0" max="100" value="100" style="width:100%;margin:6px 0;">
-        <div style="display:flex;justify-content:space-between;align-items:center;">
-          <span id="slider-status-2" style="color:#10b981;font-size:0.75rem;">Completo — verde</span>
-        </div>
-      </div>
+    <!-- KPIS -->
+    <section id="kpis" class="kpi-grid">
+        <article class="kpi-card"><div class="kpi-top"><span class="kpi-label">KPI 1</span><span class="kpi-chip">OMS</span></div><h2 id="kpi-nivel-oms">Cargando...</h2><p>% de encuestados por nivel OMS</p><div class="kpi-foot">Sedentario / Insuficiente / Activo</div></article>
+        <article class="kpi-card"><div class="kpi-top"><span class="kpi-label">KPI 2</span><span class="kpi-chip">Rango</span></div><h2 id="kpi-minutos-rango">Cargando...</h2><p>Minutos promedio por rango etario</p><div class="kpi-foot">Ver gráfico</div></article>
+        <article class="kpi-card"><div class="kpi-top"><span class="kpi-label">KPI 3</span><span class="kpi-chip">Sedentarismo</span></div><h2 id="kpi-sedentarismo-rango">Cargando...</h2><p>% sedentarios por rango etario</p><div class="kpi-foot">Ver gráfico</div></article>
+        <article class="kpi-card"><div class="kpi-top"><span class="kpi-label">KPI 4</span><span class="kpi-chip">Actividad</span></div><h2 id="kpi-tipo-actividad">Cargando...</h2><p>Actividad más frecuente por rango</p><div class="kpi-foot">Ver tabla</div></article>
+        <article class="kpi-card"><div class="kpi-top"><span class="kpi-label">KPI 5</span><span class="kpi-chip">Relación</span></div><h2 id="kpi-correlacion">Cargando...</h2><p>Correlación horas sentado vs salud</p><div id="correlacion-semaforo" class="semaforo"><span class="luz" data-color="red"></span><span class="luz" data-color="yellow"></span><span class="luz" data-color="green"></span></div><div class="kpi-foot">Semáforo</div></article>
+        <article class="kpi-card"><div class="kpi-top"><span class="kpi-label">KPI 6</span><span class="kpi-chip">App</span></div><h2 id="kpi-usa-app">Cargando...</h2><p>% que usa app</p><div class="kpi-foot">Sí / No</div></article>
+        <article class="kpi-card kpi-sla"><div class="kpi-top"><span class="kpi-label">KPI 7</span><span class="kpi-chip">SLA</span></div><h2 id="kpi-sla">Cargando...</h2><div id="kpi-sla-semaforo" class="semaforo"><span class="luz" data-color="red"></span><span class="luz" data-color="yellow"></span><span class="luz" data-color="green"></span></div><p id="kpi-sla-desc">Cargando...</p><div class="kpi-foot">Completitud / Freshness / Error Rate</div></article>
+    </section>
 
-      <!-- Slider 3: Freshness (Filtra umbral de actualidad) -->
-      <div>
-        <div style="display:flex;justify-content:space-between;align-items:center;">
-          <div><span style="color:#fff;font-weight:600;">Freshness</span><span style="color:#6b8c9c;font-size:0.7rem;display:block;">Días desde última</span></div>
-          <span id="slider-value-3" style="color:#fff;font-weight:700;font-size:1.1rem;">17 días</span>
-        </div>
-        <input type="range" id="slider-3" min="0" max="60" value="17" style="width:100%;margin:6px 0;">
-        <div style="display:flex;justify-content:space-between;align-items:center;">
-          <span id="slider-status-3" style="color:#10b981;font-size:0.75rem;">Actualizado — verde</span>
-        </div>
-      </div>
+    <!-- GRÁFICO + TABLA KPI 4 -->
+    <div class="two-col">
+        <article class="card chart-card">
+            <div class="section-head"><p class="eyebrow">Actividad semanal</p><h3>KPI 2 y 3: Minutos y % sedentarios</h3><span class="pill">Según OMS</span></div>
+            <canvas id="chartRangos" height="200"></canvas>
+        </article>
+        <article class="card info-card">
+            <div class="section-head"><p class="eyebrow">Análisis por rango</p><h3>KPI 4: Actividad frecuente</h3><span class="pill">Datos por rango</span></div>
+            <div class="table-wrap">
+                <table class="kpi-table"><thead><tr><th>Rango</th><th>Actividad frecuente</th></tr></thead><tbody id="tabla-actividad-body"><tr><td colspan="2">Cargando...</td></tr></tbody></table>
+            </div>
+        </article>
     </div>
 
-    <!-- Estado SLA global -->
-    <div style="padding-top:16px;border-top:1px solid #2a2a3e;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
-      <div style="display:flex;gap:24px;flex-wrap:wrap;">
-        <span><span style="color:#6b8c9c;">Activos:</span> <span style="color:#fff;font-weight:700;" id="sla-global-1">--</span></span>
-        <span><span style="color:#6b8c9c;">Completitud:</span> <span style="color:#fff;font-weight:700;" id="sla-global-2">--</span></span>
-        <span><span style="color:#6b8c9c;">Freshness:</span> <span style="color:#fff;font-weight:700;" id="sla-global-3">--</span></span>
-      </div>
-      <div style="display:flex;align-items:center;gap:12px;">
-        <span style="color:#6b8c9c;">Global:</span>
-        <span id="sla-global-color" style="background:#10b981;color:#fff;padding:6px 16px;border-radius:20px;font-weight:700;font-size:0.9rem;">Verde</span>
-      </div>
-    </div>
-  </section>
+    <!-- TABLA COMPLETA -->
+    <section class="card card-soft">
+        <div class="section-head"><p class="eyebrow">Análisis completo</p><h3>KPI 2, 3 y 4: Minutos, sedentarismo y actividad</h3><span class="pill">Datos por rango</span></div>
+        <div class="table-wrap">
+            <table class="kpi-table">
+                <thead><tr><th>Rango</th><th>Minutos (KPI 2)</th><th>% Sedentarios (KPI 3)</th><th>Actividad (KPI 4)</th></tr></thead>
+                <tbody id="tabla-rangos"><tr><td colspan="4">Cargando...</td></tr></tbody>
+            </table>
+        </div>
+    </section>
 
-  <!-- INFO -->
-  <section class="card info-card">
-    <div style="margin-bottom:16px;"><p class="eyebrow" style="color:#6b8c9c;">Detalles</p><h3 style="color:#fff;font-weight:600;font-size:1.2rem;">Información del proyecto</h3></div>
-    <ul class="todo-list">
-      <li><strong>Tema:</strong> <span style="color:#d4def0;">Actividad Física y Sedentarismo</span></li>
-      <li><strong>Problema:</strong> <span style="color:#d4def0;">Alto sedentarismo en Chile (>80% INE)</span></li>
-      <li><strong>Objetivo:</strong> <span style="color:#d4def0;">Medir nivel real de actividad física por rango etario</span></li>
-      <li><strong>Fuente:</strong> <span style="color:#d4def0;">Google Forms · 59 respuestas REALES</span></li>
-      <li><strong>Periodo:</strong> <span style="color:#d4def0;">Junio 2026</span></li>
-      <li><strong>Observación:</strong> <span style="color:#d4def0;">Familiares, vecinos y amigos</span></li>
-    </ul>
-  </section>
+    <!-- MONITOREO EN TIEMPO REAL (MEJORADO Y ORDENADO) -->
+    <section class="card card-soft monitoreo">
+        <div class="section-head">
+            <div>
+                <p class="eyebrow">Monitoreo en tiempo real</p>
+                <h3>Filtros interactivos</h3>
+            </div>
+            <span class="pill">Datos actualizados</span>
+        </div>
 
-  <!-- FOOTER -->
-  <section class="card card-soft" style="padding:24px 28px;">
-    <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:16px;">
-      <div><p class="eyebrow" style="color:#6b8c9c;">Fuente de datos</p><h3 style="color:#fff;font-weight:600;font-size:1.1rem;">Conexión y configuración</h3></div>
-    </div>
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-top:12px;">
-      <div><span class="meta">Endpoint</span><code style="display:block;background:#11111c;padding:10px 14px;border-radius:12px;border:1px solid #26263a;color:#d4def0;font-size:0.8rem;">http://localhost:5000/api/kpi/nivel_oms</code></div>
-      <div><span class="meta">Campos clave</span><code style="display:block;background:#11111c;padding:10px 14px;border-radius:12px;border:1px solid #26263a;color:#d4def0;font-size:0.8rem;">minutos_actividad, horas_sentado, edad, genero, tipo_actividad</code></div>
-      <div><span class="meta">Regla SLA</span><code style="display:block;background:#11111c;padding:10px 14px;border-radius:12px;border:1px solid #26263a;color:#d4def0;font-size:0.65rem;line-height:1.8;">Completitud: >= 95% (verde) | 90-94% (amarillo) | < 90% (rojo)
+        <div class="slider-grid">
+            <div class="slider-item">
+                <div class="slider-header">
+                    <span>Personas Activas</span>
+                    <span id="slider-value-1">25%</span>
+                </div>
+                <input type="range" id="slider-1" min="0" max="100" value="25">
+                <div class="slider-footer">
+                    <span id="slider-status-1" class="slider-status">Bajo — rojo</span>
+                    <span class="slider-sub">% cumple OMS</span>
+                </div>
+            </div>
+            <div class="slider-item">
+                <div class="slider-header">
+                    <span>Completitud</span>
+                    <span id="slider-value-2">100%</span>
+                </div>
+                <input type="range" id="slider-2" min="0" max="100" value="100">
+                <div class="slider-footer">
+                    <span id="slider-status-2" class="slider-status">Completo — verde</span>
+                    <span class="slider-sub">% registros completos</span>
+                </div>
+            </div>
+            <div class="slider-item">
+                <div class="slider-header">
+                    <span>Freshness</span>
+                    <span id="slider-value-3">17 días</span>
+                </div>
+                <input type="range" id="slider-3" min="0" max="60" value="17">
+                <div class="slider-footer">
+                    <span id="slider-status-3" class="slider-status">Actualizado — verde</span>
+                    <span class="slider-sub">Días desde última</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="sla-global">
+            <div class="sla-items">
+                <div>
+                    <span class="label">Activos</span>
+                    <span id="sla-global-1">--</span>
+                </div>
+                <div>
+                    <span class="label">Completitud</span>
+                    <span id="sla-global-2">--</span>
+                </div>
+                <div>
+                    <span class="label">Freshness</span>
+                    <span id="sla-global-3">--</span>
+                </div>
+            </div>
+            <div class="sla-badge">
+                <span>Global</span>
+                <span id="sla-global-color">Verde</span>
+            </div>
+        </div>
+    </section>
+
+    <!-- INFO -->
+    <section class="card info-card">
+        <div class="section-head"><p class="eyebrow">Detalles</p><h3>Información del proyecto</h3></div>
+        <ul class="todo-list">
+            <li><strong>Tema:</strong> <span>Actividad Física y Sedentarismo</span></li>
+            <li><strong>Problema:</strong> <span>Alto sedentarismo en Chile (>80% INE)</span></li>
+            <li><strong>Objetivo:</strong> <span>Medir nivel real de actividad física por rango etario</span></li>
+            <li><strong>Fuente:</strong> <span>Google Forms · 59 respuestas REALES</span></li>
+            <li><strong>Periodo:</strong> <span>Junio 2026</span></li>
+            <li><strong>Observación:</strong> <span>Familiares, vecinos y amigos</span></li>
+        </ul>
+    </section>
+
+    <!-- FOOTER -->
+    <section class="card card-soft footer">
+        <div class="section-head"><p class="eyebrow">Fuente de datos</p><h3>Conexión y configuración</h3></div>
+        <div class="footer-grid">
+            <div><span class="meta">Endpoint</span><code>http://localhost:5000/api/kpi/nivel_oms</code></div>
+            <div><span class="meta">Campos clave</span><code>minutos_actividad, horas_sentado, edad, genero, tipo_actividad</code></div>
+            <div><span class="meta">Regla SLA</span><code>Completitud: >= 95% (verde) | 90-94% (amarillo) | < 90% (rojo)
 Freshness: <= 21 días (verde) | 22-42 días (amarillo) | > 42 días (rojo)
 Error Rate: <= 1% (verde) | 1-5% (amarillo) | > 5% (rojo)</code></div>
-    </div>
-  </section>
+        </div>
+    </section>
 
 </div>
 <script src="script.js"></script>
