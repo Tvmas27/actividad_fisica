@@ -1,7 +1,6 @@
 const API_BASE = 'http://localhost:5000';
 let globalData = { rango: null, sedentarismo: null, tipoAct: null, nivel: null, correlacion: null, usaApp: null, sla: null };
 let filtroActivos = 0;
-let chartInstance = null;
 let chartLineaInstance = null;
 let modoDatos = 'original';
 
@@ -30,39 +29,18 @@ async function fetchDataMode(path) {
 
 function setText(id, text) { const el = document.getElementById(id); if (el) el.textContent = text; }
 
+function normalizarTexto(texto) {
+    return String(texto || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .trim()
+        .toLowerCase();
+}
+
 function renderSlaSemaforo(color) {
     const c = document.getElementById('kpi-sla-semaforo');
     if (!c) return;
     c.querySelectorAll('.luz').forEach(luz => luz.classList.toggle('activa', luz.dataset.color === color.toLowerCase()));
-}
-
-function actualizarGrafico(rangoData, sedData, filtro) {
-    const ctx = document.getElementById('chartRangos');
-    if (!ctx) return;
-    const labels = ['14-24','25-40','41-60','60+'];
-    const minutos = [0,0,0,0], sed = [0,0,0,0];
-    rangoData?.forEach(item => {
-        const i = labels.indexOf(item.rango);
-        if (i>=0 && item.promedio_minutos >= filtro) minutos[i] = Math.round(item.promedio_minutos);
-    });
-    sedData?.forEach(item => {
-        const i = labels.indexOf(item.rango);
-        if (i>=0 && minutos[i] > 0) sed[i] = Math.round(item.porcentaje_sedentario);
-    });
-    if (chartInstance) chartInstance.destroy();
-    chartInstance = new Chart(ctx, {
-        type: 'bar',
-        data: { labels, datasets: [
-            { label: 'Minutos (KPI 2)', data: minutos, backgroundColor: 'rgba(43,143,122,0.8)', borderColor: '#2b8f7a', borderWidth: 2, borderRadius: 4 },
-            { label: '% Sedentarios (KPI 3)', data: sed, backgroundColor: 'rgba(245,158,11,0.8)', borderColor: '#f59e0b', borderWidth: 2, borderRadius: 4 }
-        ]},
-        options: { responsive: true, maintainAspectRatio: true, aspectRatio: 2.5,
-            plugins: { legend: { labels: { color: '#d4def0', font: { size: 11, weight: '600' }, padding: 16 } },
-                tooltip: { backgroundColor: '#1a1a2b', titleColor: '#fff', bodyColor: '#d4def0', padding: 12, cornerRadius: 8,
-                    callbacks: { label: ctx => ctx.dataset.label + ': ' + ctx.parsed.y + (ctx.dataset.label.includes('Minutos') ? ' min' : '%') } } },
-            scales: { x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#7b8ba8' } },
-                y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#7b8ba8' } } } }
-    });
 }
 
 function actualizarGraficoLinea(rangoData) {
@@ -163,55 +141,6 @@ function filtrarTablaRangos(filtro) {
     tbody.innerHTML = html || '<tr><td colspan="4">No hay datos</td></tr>';
 }
 
-// ============================================================
-// DATOS DE FALLBACK (solo si la API no devuelve datos)
-// ============================================================
-const FALLBACK = {
-    nivel: [
-        { nivel: 'sedentario', porcentaje: 62.71 },
-        { nivel: 'insuficiente', porcentaje: 37.29 },
-        { nivel: 'activo', porcentaje: 0 }
-    ],
-    rango: [
-        { rango: '14-24', promedio_minutos: 63, total: 20 },
-        { rango: '25-40', promedio_minutos: 59, total: 18 },
-        { rango: '41-60', promedio_minutos: 56, total: 18 },
-        { rango: '60+', promedio_minutos: 60, total: 3 }
-    ],
-    sedentarismo: [
-        { rango: '14-24', porcentaje_sedentario: 60 },
-        { rango: '25-40', porcentaje_sedentario: 58 },
-        { rango: '41-60', porcentaje_sedentario: 74 },
-        { rango: '60+', porcentaje_sedentario: 50 }
-    ],
-    tipoAct: [
-        { rango: '14-24', actividad: 'Deportes', total: 10 },
-        { rango: '25-40', actividad: 'Caminata', total: 12 },
-        { rango: '41-60', actividad: 'Caminata', total: 10 },
-        { rango: '60+', actividad: 'Caminata', total: 2 }
-    ],
-    correlacion: { correlacion: -0.1788, color: 'yellow' },
-    usaApp: [
-        { usa_app: 'Sí', porcentaje: 12 },
-        { usa_app: 'No', porcentaje: 88 }
-    ],
-    sla: [
-        { dimension: 'Completitud', color: 'green', descripcion: '60/60 (100%)' },
-        { dimension: 'Freshness (días)', color: 'green', descripcion: '0 días' },
-        { dimension: 'Error Rate', color: 'green', descripcion: '0%' }
-    ]
-};
-
-function cargarFallback() {
-    console.warn('⚠️ Usando datos de fallback');
-    const d = FALLBACK;
-    // ... (mismo código que antes)
-    // (si el usuario llega a necesitarlo, pero con datos reales no debería)
-}
-
-// ============================================================
-// CARGA PRINCIPAL
-// ============================================================
 async function cargarDashboard() {
     console.log('🔄 Cargando dashboard...');
     
@@ -225,10 +154,15 @@ async function cargarDashboard() {
         fetchDataMode('/api/sla')
     ]);
 
-    // Si NO hay datos reales, usar fallback
     const hayDatosReales = nivel && nivel.length > 0;
     if (!hayDatosReales) {
-        cargarFallback();
+        setText('kpi-nivel-oms', 'Sin datos');
+        setText('kpi-minutos-rango', 'Sin datos');
+        setText('kpi-sedentarismo-rango', 'Sin datos');
+        setText('kpi-tipo-actividad', 'Sin datos');
+        setText('kpi-correlacion', 'Sin datos');
+        setText('kpi-usa-app', 'Sin datos');
+        setText('kpi-sla', 'Sin datos');
         return;
     }
 
@@ -251,7 +185,6 @@ async function cargarDashboard() {
         setText('kpi-minutos-rango', avgMin + ' min promedio');
         setText('hero-minutos', avgMin + ' min');
         setText('kpi-sedentarismo-rango', avgSed + '% promedio');
-        actualizarGrafico(rango, sedentarismo, filtroActivos);
         actualizarGraficoLinea(rango);
         filtrarTablaRangos(filtroActivos);
     }
@@ -284,7 +217,10 @@ async function cargarDashboard() {
 
     // ---- KPI 6 ----
     if (usaApp) {
-        const si = usaApp.find(a => a.usa_app.toLowerCase() === 'si') || { porcentaje: 0 };
+        const si = usaApp.find(a => {
+            const valor = normalizarTexto(a.usa_app);
+            return valor === 'si' || valor === 'yes' || valor === 'true' || valor === '1';
+        }) || usaApp[0] || { porcentaje: 0 };
         setText('kpi-usa-app', Math.round(si.porcentaje) + '%');
         setText('hero-usa-app', Math.round(si.porcentaje) + '%');
         document.getElementById('sla-global-1').textContent = Math.round(si.porcentaje) + '%';
@@ -328,7 +264,6 @@ document.addEventListener('DOMContentLoaded', function() {
             await cargarDashboard();
         });
     }
-    // Sliders (interactividad básica)
     const sliders = [
         { id: 'slider-1', valueId: 'slider-value-1', statusId: 'slider-status-1', globalId: 'sla-global-1' },
         { id: 'slider-2', valueId: 'slider-value-2', statusId: 'slider-status-2', globalId: 'sla-global-2' },
@@ -349,7 +284,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 else { color = 'red'; statusText = 'Bajo — rojo'; }
                 filtroActivos = val;
                 if (globalData.rango && globalData.sedentarismo) {
-                    actualizarGrafico(globalData.rango, globalData.sedentarismo, filtroActivos);
                     filtrarTablaRangos(filtroActivos);
                 }
             } else if (this.id === 'slider-2') {

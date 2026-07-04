@@ -1,16 +1,9 @@
 from datetime import datetime
 import os
-from functools import lru_cache
-
 import mysql.connector
 from mysql.connector.pooling import MySQLConnectionPool
 from flask import Flask, jsonify, request, send_from_directory
 from flask_cors import CORS
-
-
-# ============================================================
-# Configuracion general
-# ============================================================
 
 ROOT_DIR = os.path.abspath(os.path.dirname(__file__))
 PORT = int(os.getenv("PORT", "5000"))
@@ -29,106 +22,77 @@ CORS(app)
 
 pool = None
 
-
-# ============================================================
-# Conexion a MySQL
-# ============================================================
-
 def init_db():
     global pool
     try:
         pool = MySQLConnectionPool(pool_name="actividad_fisica_pool", pool_size=5, **DB_CONFIG)
-        connection = pool.get_connection()
-        connection.close()
+        pool.get_connection().close()
         print("✅ Conectado a MySQL")
     except mysql.connector.Error as exc:
-        print(f"❌ Error de conexión a MySQL: {exc}")
-        raise SystemExit(1) from exc
-
+        print(f"❌ Error de conexión: {exc}")
+        raise SystemExit(1)
 
 def query(sql, params=None, fetch_one=False):
-    if params is None:
-        params = []
-
-    connection = pool.get_connection()
-    cursor = connection.cursor(dictionary=True)
+    if params is None: params = []
+    conn = pool.get_connection()
+    cursor = conn.cursor(dictionary=True)
     try:
         cursor.execute(sql, params)
         if cursor.with_rows:
             return cursor.fetchone() if fetch_one else cursor.fetchall()
-        connection.commit()
+        conn.commit()
         return []
     finally:
         cursor.close()
-        connection.close()
-
+        conn.close()
 
 def scalar(sql, params=None, default=0):
     row = query(sql, params=params, fetch_one=True)
     if not row:
         return default
-    value = next(iter(row.values()))
-    return default if value is None else value
-
-
-# ============================================================
-# Utilidades dinamicas para tablas y columnas
-# ============================================================
+    val = next(iter(row.values()))
+    return default if val is None else val
 
 def sql_identifier(name):
     return f"`{name.replace('`', '``')}`"
 
-
-@lru_cache(maxsize=None)
 def get_table_columns(table_name):
-    rows = query(
-        """
+    rows = query("""
         SELECT COLUMN_NAME, DATA_TYPE
         FROM information_schema.columns
         WHERE table_schema = %s AND table_name = %s
         ORDER BY ORDINAL_POSITION
-        """,
-        [DB_CONFIG["database"], table_name],
-    )
-    return [{"name": row["COLUMN_NAME"], "type": row["DATA_TYPE"]} for row in rows]
-
+    """, [DB_CONFIG["database"], table_name])
+    return [{"name": r["COLUMN_NAME"], "type": r["DATA_TYPE"]} for r in rows]
 
 def has_table(table_name):
     return len(get_table_columns(table_name)) > 0
 
-
 def column_map(table_name):
-    return {column["name"].lower(): column for column in get_table_columns(table_name)}
-
+    return {col["name"].lower(): col for col in get_table_columns(table_name)}
 
 def pick_column(table_name, candidates):
-    columns = column_map(table_name)
-    for candidate in candidates:
-        column = columns.get(candidate.lower())
-        if column:
-            return column["name"]
+    cols = column_map(table_name)
+    for c in candidates:
+        if c.lower() in cols:
+            return cols[c.lower()]["name"]
     return None
 
-
-def is_text_type(data_type):
-    return data_type.lower() in {"char", "varchar", "text", "tinytext", "mediumtext", "longtext"}
-
+def is_text_type(dtype):
+    return dtype.lower() in {"char", "varchar", "text", "tinytext", "mediumtext", "longtext"}
 
 def source_from_request():
     if request.path.startswith("/api/kpi/etl/"):
         return "etl"
-    source = (request.args.get("source") or request.args.get("fuente") or "original").lower()
-    return "etl" if source in {"etl", "filtrado", "filtered"} else "original"
-
+    src = (request.args.get("source") or "").lower()
+    return "etl" if src in {"etl", "filtrado", "filtered"} else "original"
 
 def fact_table_for_source(source):
     return "fact_actividad_fisica" if source == "etl" else "fact_respuestas"
 
-
 def range_expression(table_name, alias="f"):
-    columnas = column_map(table_name)
-
-    if "edad" in columnas:
+    cols = column_map(table_name)
+    if "edad" in cols:
         return f"""
             CASE
                 WHEN {alias}.edad BETWEEN 14 AND 24 THEN '14-24'
@@ -138,84 +102,60 @@ def range_expression(table_name, alias="f"):
                 ELSE 'sin_rango'
             END
         """
-
-    for candidate in ["rango_etario", "rango_edad", "rango"]:
-        column = columnas.get(candidate)
-        if column:
-            column_sql = sql_identifier(column["name"])
-            return f"COALESCE(NULLIF({alias}.{column_sql}, ''), 'sin_rango')"
-
-    raise ValueError(f"La tabla {table_name} no tiene columna de edad o rango etario")
-
+    for c in ["rango_etario", "rango_edad", "rango"]:
+        if c in cols:
+            return f"COALESCE(NULLIF({alias}.{sql_identifier(c)}, ''), 'sin_rango')"
+    raise ValueError("Tabla sin columna de edad o rango")
 
 def minutes_column(table_name, alias="f"):
-    column = pick_column(table_name, ["minutos_actividad", "minutos", "actividad_minutos"])
-    if not column:
-        raise ValueError(f"La tabla {table_name} no tiene columna de minutos de actividad")
-    return f"{alias}.{sql_identifier(column)}"
-
+    col = pick_column(table_name, ["minutos_actividad", "minutos", "actividad_minutos"])
+    if not col:
+        raise ValueError("Tabla sin columna de minutos")
+    return f"{alias}.{sql_identifier(col)}"
 
 def hours_column(table_name, alias="f"):
-    column = pick_column(table_name, ["horas_sentado", "horas", "horas_sentar"])
-    if not column:
-        raise ValueError(f"La tabla {table_name} no tiene columna de horas sentado")
-    return f"{alias}.{sql_identifier(column)}"
-
+    col = pick_column(table_name, ["horas_sentado", "horas", "horas_sentar"])
+    if not col:
+        raise ValueError("Tabla sin columna de horas sentado")
+    return f"{alias}.{sql_identifier(col)}"
 
 def activity_expression_and_join(table_name, alias="f"):
-    fact_columns = column_map(table_name)
+    cols = column_map(table_name)
     fk = pick_column(table_name, ["id_actividad", "actividad_id"])
-
     if fk and has_table("dim_actividad"):
         dim_id = pick_column("dim_actividad", ["id_actividad", "actividad_id", "id"])
         dim_label = pick_column("dim_actividad", ["tipo_actividad", "tipo", "actividad", "nombre"])
         if dim_id and dim_label:
-            join_sql = f"JOIN dim_actividad a ON {alias}.{sql_identifier(fk)} = a.{sql_identifier(dim_id)}"
-            return f"a.{sql_identifier(dim_label)}", join_sql
-
-    for candidate in ["tipo_actividad", "actividad", "tipo"]:
-        column = fact_columns.get(candidate)
-        if column:
-            return f"{alias}.{sql_identifier(column['name'])}", ""
-
-    raise ValueError(f"No se pudo resolver la actividad para {table_name}")
-
+            return f"a.{sql_identifier(dim_label)}", f"JOIN dim_actividad a ON {alias}.{sql_identifier(fk)} = a.{sql_identifier(dim_id)}"
+    for c in ["tipo_actividad", "actividad", "tipo"]:
+        if c in cols:
+            return f"{alias}.{sql_identifier(c)}", ""
+    raise ValueError("No se pudo resolver actividad")
 
 def app_expression_and_join(table_name, alias="f"):
-    fact_columns = column_map(table_name)
+    cols = column_map(table_name)
     fk = pick_column(table_name, ["id_app", "app_id"])
-
     if fk and has_table("dim_app"):
         dim_id = pick_column("dim_app", ["id_app", "app_id", "id"])
         dim_label = pick_column("dim_app", ["usa_app", "app", "descripcion"])
         if dim_id and dim_label:
-            join_sql = f"JOIN dim_app a ON {alias}.{sql_identifier(fk)} = a.{sql_identifier(dim_id)}"
-            return f"a.{sql_identifier(dim_label)}", join_sql
-
-    for candidate in ["usa_app", "app", "usa"]:
-        column = fact_columns.get(candidate)
-        if column:
-            return f"{alias}.{sql_identifier(column['name'])}", ""
-
-    raise ValueError(f"No se pudo resolver el uso de app para {table_name}")
-
+            return f"a.{sql_identifier(dim_label)}", f"JOIN dim_app a ON {alias}.{sql_identifier(fk)} = a.{sql_identifier(dim_id)}"
+    for c in ["usa_app", "app", "usa"]:
+        if c in cols:
+            return f"{alias}.{sql_identifier(c)}", ""
+    raise ValueError("No se pudo resolver app")
 
 def health_expression_and_join(table_name, alias="f"):
-    fact_columns = column_map(table_name)
+    cols = column_map(table_name)
     fk = pick_column(table_name, ["id_salud", "salud_id"])
-
     if fk and has_table("dim_salud"):
         dim_id = pick_column("dim_salud", ["id_salud", "salud_id", "id"])
         numeric_col = pick_column("dim_salud", ["valor_promedio", "promedio", "valor"])
         label_col = pick_column("dim_salud", ["nivel_salud", "nivel", "rango"])
-
         if dim_id and numeric_col:
-            join_sql = f"JOIN dim_salud s ON {alias}.{sql_identifier(fk)} = s.{sql_identifier(dim_id)}"
-            return f"s.{sql_identifier(numeric_col)}", join_sql
-
+            return f"s.{sql_identifier(numeric_col)}", f"JOIN dim_salud s ON {alias}.{sql_identifier(fk)} = s.{sql_identifier(dim_id)}"
         if dim_id and label_col:
-            join_sql = f"JOIN dim_salud s ON {alias}.{sql_identifier(fk)} = s.{sql_identifier(dim_id)}"
-            expression = f"""
+            expr = f"""
                 CASE
                     WHEN s.{sql_identifier(label_col)} = '1-3' THEN 2
                     WHEN s.{sql_identifier(label_col)} = '3-5' THEN 4
@@ -224,457 +164,279 @@ def health_expression_and_join(table_name, alias="f"):
                     ELSE 0
                 END
             """
-            return expression, join_sql
-
-    for candidate in ["percepcion_salud", "nivel_salud", "salud"]:
-        column = fact_columns.get(candidate)
-        if column:
-            column_sql = sql_identifier(column["name"])
-            if is_text_type(column["type"]):
-                expression = f"""
+            return expr, f"JOIN dim_salud s ON {alias}.{sql_identifier(fk)} = s.{sql_identifier(dim_id)}"
+    for c in ["percepcion_salud", "nivel_salud", "salud"]:
+        if c in cols:
+            col_sql = sql_identifier(c)
+            if is_text_type(cols[c]["type"]):
+                return f"""
                     CASE
-                        WHEN {alias}.{column_sql} = '1-3' THEN 2
-                        WHEN {alias}.{column_sql} = '3-5' THEN 4
-                        WHEN {alias}.{column_sql} = '5-8' THEN 6.5
-                        WHEN {alias}.{column_sql} = '8-10' THEN 9
-                        ELSE CAST({alias}.{column_sql} AS DECIMAL(10,2))
+                        WHEN {alias}.{col_sql} = '1-3' THEN 2
+                        WHEN {alias}.{col_sql} = '3-5' THEN 4
+                        WHEN {alias}.{col_sql} = '5-8' THEN 6.5
+                        WHEN {alias}.{col_sql} = '8-10' THEN 9
+                        ELSE CAST({alias}.{col_sql} AS DECIMAL(10,2))
                     END
-                """
-            else:
-                expression = f"CAST({alias}.{column_sql} AS DECIMAL(10,2))"
-            return expression, ""
-
-    raise ValueError(f"No se pudo resolver la percepcion de salud para {table_name}")
-
+                """, ""
+            return f"CAST({alias}.{col_sql} AS DECIMAL(10,2))", ""
+    raise ValueError("No se pudo resolver salud")
 
 def date_expression_and_join(table_name, alias="f"):
-    fact_columns = column_map(table_name)
-
-    for candidate in ["fecha_carga", "fecha", "date"]:
-        column = fact_columns.get(candidate)
-        if column:
-            return f"{alias}.{sql_identifier(column['name'])}", ""
-
+    cols = column_map(table_name)
+    for c in ["fecha_carga", "fecha", "date"]:
+        if c in cols:
+            return f"{alias}.{sql_identifier(c)}", ""
     fk = pick_column(table_name, ["id_fecha", "fecha_id"])
     if fk and has_table("dim_fecha"):
         dim_id = pick_column("dim_fecha", ["id_fecha", "fecha_id", "id"])
         dim_date = pick_column("dim_fecha", ["fecha", "date", "dia"])
         if dim_id and dim_date:
-            join_sql = f"JOIN dim_fecha d ON {alias}.{sql_identifier(fk)} = d.{sql_identifier(dim_id)}"
-            return f"d.{sql_identifier(dim_date)}", join_sql
-
-    raise ValueError(f"No se pudo resolver la fecha para {table_name}")
-
+            return f"d.{sql_identifier(dim_date)}", f"JOIN dim_fecha d ON {alias}.{sql_identifier(fk)} = d.{sql_identifier(dim_id)}"
+    raise ValueError("No se pudo resolver fecha")
 
 def completeness_columns(table_name):
-    fact_columns = column_map(table_name)
-    preferred = [
-        "edad",
-        "rango_etario",
-        "rango_edad",
-        "horas_sentado",
-        "horas",
-        "minutos_actividad",
-        "id_genero",
-        "genero",
-        "id_actividad",
-        "actividad_id",
-        "tipo_actividad",
-        "actividad",
-        "id_salud",
-        "salud_id",
-        "nivel_salud",
-        "percepcion_salud",
-        "id_app",
-        "app_id",
-        "usa_app",
-        "id_fecha",
-        "fecha_id",
-        "fecha",
-        "fecha_carga",
-    ]
-
+    cols = column_map(table_name)
+    preferred = ["edad","rango_etario","rango_edad","horas_sentado","horas","minutos_actividad","id_genero","genero","id_actividad","actividad_id","tipo_actividad","actividad","id_salud","salud_id","nivel_salud","percepcion_salud","id_app","app_id","usa_app","id_fecha","fecha_id","fecha","fecha_carga"]
     selected = []
     seen = set()
-    for candidate in preferred:
-        column = fact_columns.get(candidate)
-        if column and column["name"].lower() not in seen:
-            selected.append(column)
-            seen.add(column["name"].lower())
+    for c in preferred:
+        if c in cols and c not in seen:
+            selected.append(cols[c])
+            seen.add(c)
     return selected
 
-
 def build_quality_response(table_name, source):
-    columns = get_table_columns(table_name)
-    if not columns:
-        raise ValueError(f"La tabla {table_name} no existe o no tiene columnas")
-
+    cols = get_table_columns(table_name)
+    if not cols:
+        raise ValueError(f"Tabla {table_name} no existe")
     total = scalar(f"SELECT COUNT(*) AS total FROM {table_name}", default=0)
     select_parts = ["COUNT(*) AS total"]
-
-    for column in columns:
-        if column["name"].lower() == "id":
-            continue
-        column_sql = sql_identifier(column["name"])
-        alias_name = f"{column['name']}_nulos"
-        alias_sql = sql_identifier(alias_name)
-        if is_text_type(column["type"]):
-            null_sql = f"SUM(CASE WHEN {column_sql} IS NULL OR TRIM({column_sql}) = '' THEN 1 ELSE 0 END) AS {alias_sql}"
+    for col in cols:
+        if col["name"].lower() == "id": continue
+        col_sql = sql_identifier(col["name"])
+        alias = sql_identifier(f"{col['name']}_nulos")
+        if is_text_type(col["type"]):
+            select_parts.append(f"SUM(CASE WHEN {col_sql} IS NULL OR TRIM({col_sql}) = '' THEN 1 ELSE 0 END) AS {alias}")
         else:
-            null_sql = f"SUM(CASE WHEN {column_sql} IS NULL THEN 1 ELSE 0 END) AS {alias_sql}"
-        select_parts.append(null_sql)
-
+            select_parts.append(f"SUM(CASE WHEN {col_sql} IS NULL THEN 1 ELSE 0 END) AS {alias}")
     row = query(f"SELECT {', '.join(select_parts)} FROM {table_name}", fetch_one=True)
     metrics = []
-
-    for column in columns:
-        if column["name"].lower() == "id":
-            continue
-        nulos = int(row.get(f"{column['name']}_nulos", 0) or 0)
+    for col in cols:
+        if col["name"].lower() == "id": continue
+        nulos = int(row.get(f"{col['name']}_nulos", 0) or 0)
         completitud = round(((total - nulos) / total) * 100, 2) if total else 0
         estado = "verde" if completitud >= 95 else "amarillo" if completitud >= 90 else "rojo"
-        metrics.append(
-            {
-                "campo": column["name"],
-                "completitud": completitud,
-                "nulos": nulos,
-                "estado": estado,
-            }
-        )
-
-    promedio = round(sum(item["completitud"] for item in metrics) / len(metrics), 2) if metrics else 0
+        metrics.append({"campo": col["name"], "completitud": completitud, "nulos": nulos, "estado": estado})
+    avg = round(sum(m["completitud"] for m in metrics) / len(metrics), 2) if metrics else 0
     return {
-        "ok": True,
-        "source": source,
-        "table": table_name,
+        "ok": True, "source": source, "table": table_name,
         "generated_at": datetime.now().isoformat(timespec="seconds"),
-        "total": total,
-        "data": metrics,
-        "resumen": {
-            "completitud_promedio": promedio,
-            "campos": len(metrics),
-        },
+        "total": total, "data": metrics,
+        "resumen": {"completitud_promedio": avg, "campos": len(metrics)}
     }
-
 
 def sla_response_for_table(table_name, source):
     total = scalar(f"SELECT COUNT(*) AS total FROM {table_name}", default=0)
-    fact_columns = column_map(table_name)
-
-    completeness_fields = completeness_columns(table_name)
-    if completeness_fields:
+    cols = completeness_columns(table_name)
+    if cols:
         checks = []
-        for column in completeness_fields:
-            column_sql = sql_identifier(column["name"])
-            if is_text_type(column["type"]):
-                checks.append(f"{column_sql} IS NOT NULL AND TRIM({column_sql}) <> ''")
+        for col in cols:
+            col_sql = sql_identifier(col["name"])
+            if is_text_type(col["type"]):
+                checks.append(f"{col_sql} IS NOT NULL AND TRIM({col_sql}) <> ''")
             else:
-                checks.append(f"{column_sql} IS NOT NULL")
-        completeness_sql = f"SELECT COUNT(*) AS completos FROM {table_name} WHERE {' AND '.join(checks)}"
-        completos = scalar(completeness_sql, default=0)
+                checks.append(f"{col_sql} IS NOT NULL")
+        completos = scalar(f"SELECT COUNT(*) AS completos FROM {table_name} WHERE {' AND '.join(checks)}", default=0)
     else:
         completos = total
-
     pct_comp = round((completos / total) * 100) if total else 0
     color_comp = "green" if pct_comp >= 95 else "yellow" if pct_comp >= 90 else "red"
-
     freshness = 0
     color_fresh = "red"
     try:
         date_expr, date_join = date_expression_and_join(table_name)
-        freshness_sql = f"SELECT DATEDIFF(CURDATE(), MAX(x.fecha_valor)) AS dias FROM (SELECT {date_expr} AS fecha_valor FROM {table_name} f {date_join}) x"
-        freshness_value = scalar(freshness_sql, default=0)
-        freshness = int(freshness_value) if freshness_value is not None else 0
+        freshness = int(scalar(f"SELECT DATEDIFF(CURDATE(), MAX(x.fecha_valor)) AS dias FROM (SELECT {date_expr} AS fecha_valor FROM {table_name} f {date_join}) x", default=0) or 0)
         color_fresh = "green" if freshness <= 21 else "yellow" if freshness <= 42 else "red"
     except Exception:
-        freshness = 0
-
-    invalid_conditions = []
-    if "horas_sentado" in fact_columns:
-        invalid_conditions.append("horas_sentado < 0 OR horas_sentado > 18")
-    if "minutos_actividad" in fact_columns:
-        invalid_conditions.append("minutos_actividad < 0")
-
-    errores = 0
-    if invalid_conditions:
-        error_sql = f"SELECT SUM(CASE WHEN {' OR '.join(invalid_conditions)} THEN 1 ELSE 0 END) AS errores FROM {table_name}"
-        errores = scalar(error_sql, default=0)
-
+        pass
+    invalid = []
+    if "horas_sentado" in column_map(table_name):
+        invalid.append("horas_sentado < 0 OR horas_sentado > 18")
+    if "minutos_actividad" in column_map(table_name):
+        invalid.append("minutos_actividad < 0")
+    errores = scalar(f"SELECT SUM(CASE WHEN {' OR '.join(invalid)} THEN 1 ELSE 0 END) AS errores FROM {table_name}", default=0) if invalid else 0
     error_rate = round((errores / total) * 100, 2) if total else 0
     color_error = "green" if error_rate <= 1 else "yellow" if error_rate <= 5 else "red"
-
     return {
-        "ok": True,
-        "source": source,
-        "table": table_name,
+        "ok": True, "source": source, "table": table_name,
         "data": [
-            {
-                "dimension": "Completitud",
-                "color": color_comp,
-                "descripcion": f"{completos}/{total} ({pct_comp}%)",
-            },
-            {
-                "dimension": "Freshness (días)",
-                "color": color_fresh,
-                "descripcion": f"{freshness} días",
-            },
-            {
-                "dimension": "Error Rate",
-                "color": color_error,
-                "descripcion": f"{error_rate:.2f}%",
-            },
-        ],
+            {"dimension": "Completitud", "color": color_comp, "descripcion": f"{completos}/{total} ({pct_comp}%)"},
+            {"dimension": "Freshness (días)", "color": color_fresh, "descripcion": f"{freshness} días"},
+            {"dimension": "Error Rate", "color": color_error, "descripcion": f"{error_rate:.2f}%"}
+        ]
     }
-
 
 def pearson_correlation(table_name):
     hours_expr = hours_column(table_name)
     health_expr, health_join = health_expression_and_join(table_name)
-    joins = f" {health_join}" if health_join else ""
-
-    sql = f"""
-        SELECT
-            {hours_expr} AS horas_sentado,
-            {health_expr} AS percepcion_salud
-        FROM {table_name} f{joins}
-        WHERE {hours_expr} IS NOT NULL
-          AND {health_expr} IS NOT NULL
-    """
-    rows = query(sql)
+    rows = query(f"SELECT {hours_expr} AS horas_sentado, {health_expr} AS percepcion_salud FROM {table_name} f {health_join} WHERE {hours_expr} IS NOT NULL AND {health_expr} IS NOT NULL")
     if not rows or len(rows) < 2:
         return {"correlacion": 0, "color": "yellow", "n": 0}
-
     n = len(rows)
-    sum_x = 0.0
-    sum_y = 0.0
-    sum_xy = 0.0
-    sum_x2 = 0.0
-    sum_y2 = 0.0
-
-    for row in rows:
-        x = float(row["horas_sentado"])
-        y = float(row["percepcion_salud"])
-        sum_x += x
-        sum_y += y
-        sum_xy += x * y
-        sum_x2 += x * x
-        sum_y2 += y * y
-
-    numerador = (n * sum_xy) - (sum_x * sum_y)
-    denominador = ((n * sum_x2) - (sum_x * sum_x)) * ((n * sum_y2) - (sum_y * sum_y))
-    correlacion = 0 if denominador <= 0 else round(numerador / (denominador ** 0.5), 4)
-    color = "green" if correlacion < -0.3 else "red" if correlacion > 0.3 else "yellow"
-    return {"correlacion": correlacion, "color": color, "n": n}
-
+    sum_x = sum_y = sum_xy = sum_x2 = sum_y2 = 0.0
+    for r in rows:
+        x = float(r["horas_sentado"]); y = float(r["percepcion_salud"])
+        sum_x += x; sum_y += y; sum_xy += x*y; sum_x2 += x*x; sum_y2 += y*y
+    num = (n * sum_xy) - (sum_x * sum_y)
+    den = ((n * sum_x2) - (sum_x * sum_x)) * ((n * sum_y2) - (sum_y * sum_y))
+    corr = 0 if den <= 0 else round(num / (den ** 0.5), 4)
+    color = "green" if corr < -0.3 else "red" if corr > 0.3 else "yellow"
+    return {"correlacion": corr, "color": color, "n": n}
 
 def tipo_actividad_response(table_name):
     rango_expr = range_expression(table_name)
-    actividad_expr, join_sql = activity_expression_and_join(table_name)
-    sql = f"""
-        SELECT
-            {rango_expr} AS rango,
-            {actividad_expr} AS actividad,
-            COUNT(*) AS total
-        FROM {table_name} f
-        {join_sql}
+    act_expr, join_sql = activity_expression_and_join(table_name)
+    rows = query(f"""
+        SELECT {rango_expr} AS rango, {act_expr} AS actividad, COUNT(*) AS total
+        FROM {table_name} f {join_sql}
         GROUP BY rango, actividad
         ORDER BY FIELD(rango, '14-24', '25-40', '41-60', '60+', 'sin_rango'), total DESC
-    """
-    rows = query(sql)
+    """)
     result = []
     seen = set()
     for row in rows:
-        rango = row.get("rango")
-        if rango and rango != "sin_rango" and rango not in seen:
-            seen.add(rango)
-            result.append(row)
+        r = row.get("rango")
+        if r and r != "sin_rango" and r not in seen:
+            seen.add(r); result.append(row)
     return result
-
 
 def basic_range_response(table_name):
     rango_expr = range_expression(table_name)
-    minutos_expr = minutes_column(table_name)
-    sql = f"""
-        SELECT
-            {rango_expr} AS rango,
-            ROUND(AVG({minutos_expr}), 2) AS promedio_minutos,
-            COUNT(*) AS total
+    mins = minutes_column(table_name)
+    return query(f"""
+        SELECT {rango_expr} AS rango, ROUND(AVG({mins}), 2) AS promedio_minutos, COUNT(*) AS total
         FROM {table_name} f
         GROUP BY rango
         ORDER BY FIELD(rango, '14-24', '25-40', '41-60', '60+', 'sin_rango')
-    """
-    return query(sql)
-
+    """)
 
 def sedentarismo_response(table_name):
     rango_expr = range_expression(table_name)
-    minutos_expr = minutes_column(table_name)
-    sql = f"""
-        SELECT
-            {rango_expr} AS rango,
-            ROUND(SUM(CASE WHEN {minutos_expr} < 75 THEN 1 ELSE 0 END) / COUNT(*) * 100, 2) AS porcentaje_sedentario
+    mins = minutes_column(table_name)
+    return query(f"""
+        SELECT {rango_expr} AS rango, ROUND(SUM(CASE WHEN {mins} < 75 THEN 1 ELSE 0 END) / COUNT(*) * 100, 2) AS porcentaje_sedentario
         FROM {table_name} f
         GROUP BY rango
         ORDER BY FIELD(rango, '14-24', '25-40', '41-60', '60+', 'sin_rango')
-    """
-    return query(sql)
-
+    """)
 
 def nivel_oms_response(table_name):
-    minutos_expr = minutes_column(table_name)
+    mins = minutes_column(table_name)
     total = scalar(f"SELECT COUNT(*) AS total FROM {table_name}", default=0)
-    sql = f"""
+    rows = query(f"""
         SELECT
-            CASE
-                WHEN {minutos_expr} < 75 THEN 'sedentario'
-                WHEN {minutos_expr} BETWEEN 75 AND 149 THEN 'insuficiente'
-                WHEN {minutos_expr} >= 150 THEN 'activo'
-                ELSE 'sin_dato'
-            END AS nivel,
+            CASE WHEN {mins} < 75 THEN 'sedentario' WHEN {mins} BETWEEN 75 AND 149 THEN 'insuficiente' WHEN {mins} >= 150 THEN 'activo' ELSE 'sin_dato' END AS nivel,
             COUNT(*) AS total,
             ROUND(COUNT(*) / %s * 100, 2) AS porcentaje
         FROM {table_name} f
         GROUP BY nivel
         ORDER BY FIELD(nivel, 'sedentario', 'insuficiente', 'activo', 'sin_dato')
-    """
-    rows = query(sql, [total])
+    """, [total])
     return total, rows
-
 
 def usa_app_response(table_name):
     app_expr, join_sql = app_expression_and_join(table_name)
     total = scalar(f"SELECT COUNT(*) AS total FROM {table_name}", default=0)
-    sql = f"""
-        SELECT
-            {app_expr} AS usa_app,
-            COUNT(*) AS total,
-            ROUND(COUNT(*) / %s * 100, 2) AS porcentaje
-        FROM {table_name} f
-        {join_sql}
+    return query(f"""
+        SELECT {app_expr} AS usa_app, COUNT(*) AS total, ROUND(COUNT(*) / %s * 100, 2) AS porcentaje
+        FROM {table_name} f {join_sql}
         GROUP BY usa_app
-    """
-    return query(sql, [total])
+    """, [total])
 
+# Rutas (todas las que antes estaban en el bucle, pero ahora con funciones lambda simples)
+def make_route(path, func):
+    app.add_url_rule(path, endpoint=f"{func.__name__}_{path.replace('/', '_')}", view_func=func)
 
-# ============================================================
-# Endpoints KPI
-# ============================================================
-
-@app.get("/api/kpi/nivel_oms")
-@app.get("/api/kpi/etl/nivel_oms")
 def api_nivel_oms():
     try:
-        source = source_from_request()
-        table_name = fact_table_for_source(source)
-        total, rows = nivel_oms_response(table_name)
-        return jsonify({"ok": True, "source": source, "total": total, "data": rows})
-    except Exception as exc:
-        return jsonify({"ok": False, "error": str(exc)}), 500
+        src = source_from_request(); t = fact_table_for_source(src)
+        total, rows = nivel_oms_response(t)
+        return jsonify({"ok": True, "source": src, "total": total, "data": rows})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
 
-
-@app.get("/api/kpi/rango_etario")
-@app.get("/api/kpi/etl/rango_etario")
 def api_rango_etario():
     try:
-        source = source_from_request()
-        table_name = fact_table_for_source(source)
-        rows = basic_range_response(table_name)
-        return jsonify({"ok": True, "source": source, "data": rows})
-    except Exception as exc:
-        return jsonify({"ok": False, "error": str(exc)}), 500
+        src = source_from_request(); t = fact_table_for_source(src)
+        return jsonify({"ok": True, "source": src, "data": basic_range_response(t)})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
 
-
-@app.get("/api/kpi/sedentarismo")
-@app.get("/api/kpi/etl/sedentarismo")
 def api_sedentarismo():
     try:
-        source = source_from_request()
-        table_name = fact_table_for_source(source)
-        rows = sedentarismo_response(table_name)
-        return jsonify({"ok": True, "source": source, "data": rows})
-    except Exception as exc:
-        return jsonify({"ok": False, "error": str(exc)}), 500
+        src = source_from_request(); t = fact_table_for_source(src)
+        return jsonify({"ok": True, "source": src, "data": sedentarismo_response(t)})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
 
-
-@app.get("/api/kpi/tipo_actividad")
-@app.get("/api/kpi/etl/tipo_actividad")
 def api_tipo_actividad():
     try:
-        source = source_from_request()
-        table_name = fact_table_for_source(source)
-        rows = tipo_actividad_response(table_name)
-        return jsonify({"ok": True, "source": source, "data": rows})
-    except Exception as exc:
-        return jsonify({"ok": False, "error": str(exc)}), 500
+        src = source_from_request(); t = fact_table_for_source(src)
+        return jsonify({"ok": True, "source": src, "data": tipo_actividad_response(t)})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
 
-
-@app.get("/api/kpi/correlacion")
-@app.get("/api/kpi/etl/correlacion")
 def api_correlacion():
     try:
-        source = source_from_request()
-        table_name = fact_table_for_source(source)
-        data = pearson_correlation(table_name)
-        return jsonify({"ok": True, "source": source, "data": data})
-    except Exception as exc:
-        return jsonify({"ok": False, "error": str(exc)}), 500
+        src = source_from_request(); t = fact_table_for_source(src)
+        return jsonify({"ok": True, "source": src, "data": pearson_correlation(t)})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
 
-
-@app.get("/api/kpi/usa_app")
-@app.get("/api/kpi/etl/usa_app")
 def api_usa_app():
     try:
-        source = source_from_request()
-        table_name = fact_table_for_source(source)
-        rows = usa_app_response(table_name)
-        return jsonify({"ok": True, "source": source, "data": rows})
-    except Exception as exc:
-        return jsonify({"ok": False, "error": str(exc)}), 500
+        src = source_from_request(); t = fact_table_for_source(src)
+        return jsonify({"ok": True, "source": src, "data": usa_app_response(t)})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
 
-
-# ============================================================
-# SLA y calidad de datos
-# ============================================================
-
-@app.get("/api/sla")
-@app.get("/api/kpi/etl/sla")
 def api_sla():
     try:
-        source = source_from_request()
-        table_name = fact_table_for_source(source)
-        data = sla_response_for_table(table_name, source)
-        return jsonify(data)
-    except Exception as exc:
-        return jsonify({"ok": False, "error": str(exc)}), 500
+        src = source_from_request(); t = fact_table_for_source(src)
+        return jsonify(sla_response_for_table(t, src))
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
 
-
-@app.get("/api/quality")
-@app.get("/api/kpi/etl/quality")
 def api_quality():
     try:
-        source = source_from_request()
-        table_name = fact_table_for_source(source)
-        data = build_quality_response(table_name, source)
-        return jsonify(data)
-    except Exception as exc:
-        return jsonify({"ok": False, "error": str(exc)}), 500
+        src = source_from_request(); t = fact_table_for_source(src)
+        return jsonify(build_quality_response(t, src))
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
 
-
-# ============================================================
-# Frontend
-# ============================================================
+# Registrar rutas
+routes = [
+    ("/api/kpi/nivel_oms", api_nivel_oms), ("/api/kpi/etl/nivel_oms", api_nivel_oms),
+    ("/api/kpi/rango_etario", api_rango_etario), ("/api/kpi/etl/rango_etario", api_rango_etario),
+    ("/api/kpi/sedentarismo", api_sedentarismo), ("/api/kpi/etl/sedentarismo", api_sedentarismo),
+    ("/api/kpi/tipo_actividad", api_tipo_actividad), ("/api/kpi/etl/tipo_actividad", api_tipo_actividad),
+    ("/api/kpi/correlacion", api_correlacion), ("/api/kpi/etl/correlacion", api_correlacion),
+    ("/api/kpi/usa_app", api_usa_app), ("/api/kpi/etl/usa_app", api_usa_app),
+    ("/api/sla", api_sla), ("/api/kpi/etl/sla", api_sla),
+    ("/api/quality", api_quality), ("/api/kpi/etl/quality", api_quality),
+]
+for path, func in routes:
+    app.add_url_rule(path, endpoint=f"{func.__name__}_{path.replace('/', '_')}", view_func=func)
 
 @app.get("/")
 def home():
     return send_from_directory(ROOT_DIR, "index.html")
 
-
 @app.errorhandler(404)
-def not_found(_error):
+def not_found(_):
     if request.path.startswith("/api/"):
         return jsonify({"ok": False, "error": "Endpoint no encontrado"}), 404
     return "Not Found", 404
-
 
 if __name__ == "__main__":
     init_db()
