@@ -69,6 +69,23 @@
         </article>
     </div>
 
+    <!-- TENDENCIA + CALIDAD -->
+    <div class="two-col">
+        <article class="card chart-card">
+            <div class="section-head"><p class="eyebrow">Tendencia</p><h3>Minutos promedio por rango etario</h3><span class="pill">Línea</span></div>
+            <canvas id="chartLinea" height="200"></canvas>
+        </article>
+        <article class="card info-card">
+            <div class="section-head"><p class="eyebrow">Calidad de datos</p><h3>Completitud y nulos por campo</h3><span class="pill">/api/quality</span></div>
+            <div class="table-wrap">
+                <table class="kpi-table">
+                    <thead><tr><th>Campo</th><th>% Completitud</th><th>Registros nulos</th><th>Estado</th></tr></thead>
+                    <tbody id="tabla-calidad-body"><tr><td colspan="4">Cargando...</td></tr></tbody>
+                </table>
+            </div>
+        </article>
+    </div>
+
     <!-- TABLA COMPLETA -->
     <section class="card card-soft">
         <div class="section-head"><p class="eyebrow">Análisis completo</p><h3>KPI 2, 3 y 4: Minutos, sedentarismo y actividad</h3><span class="pill">Datos por rango</span></div>
@@ -80,71 +97,36 @@
         </div>
     </section>
 
-    <!-- MONITOREO EN TIEMPO REAL (MEJORADO Y ORDENADO) -->
+    <!-- MONITOREO -->
     <section class="card card-soft monitoreo">
         <div class="section-head">
-            <div>
-                <p class="eyebrow">Monitoreo en tiempo real</p>
-                <h3>Filtros interactivos</h3>
-            </div>
-            <span class="pill">Datos actualizados</span>
+            <div><p class="eyebrow">Monitoreo en tiempo real</p><h3>Filtros interactivos</h3></div>
+            <button type="button" id="toggle-etl-btn" class="btn btn-secondary">Ver datos filtrados</button>
         </div>
-
         <div class="slider-grid">
             <div class="slider-item">
-                <div class="slider-header">
-                    <span>Personas Activas</span>
-                    <span id="slider-value-1">25%</span>
-                </div>
+                <div class="slider-header"><span>Personas Activas</span><span id="slider-value-1">25%</span></div>
                 <input type="range" id="slider-1" min="0" max="100" value="25">
-                <div class="slider-footer">
-                    <span id="slider-status-1" class="slider-status">Bajo — rojo</span>
-                    <span class="slider-sub">% cumple OMS</span>
-                </div>
+                <div class="slider-footer"><span id="slider-status-1" class="slider-status">Bajo — rojo</span><span class="slider-sub">% cumple OMS</span></div>
             </div>
             <div class="slider-item">
-                <div class="slider-header">
-                    <span>Completitud</span>
-                    <span id="slider-value-2">100%</span>
-                </div>
+                <div class="slider-header"><span>Completitud</span><span id="slider-value-2">100%</span></div>
                 <input type="range" id="slider-2" min="0" max="100" value="100">
-                <div class="slider-footer">
-                    <span id="slider-status-2" class="slider-status">Completo — verde</span>
-                    <span class="slider-sub">% registros completos</span>
-                </div>
+                <div class="slider-footer"><span id="slider-status-2" class="slider-status">Completo — verde</span><span class="slider-sub">% registros completos</span></div>
             </div>
             <div class="slider-item">
-                <div class="slider-header">
-                    <span>Freshness</span>
-                    <span id="slider-value-3">17 días</span>
-                </div>
+                <div class="slider-header"><span>Freshness</span><span id="slider-value-3">17 días</span></div>
                 <input type="range" id="slider-3" min="0" max="60" value="17">
-                <div class="slider-footer">
-                    <span id="slider-status-3" class="slider-status">Actualizado — verde</span>
-                    <span class="slider-sub">Días desde última</span>
-                </div>
+                <div class="slider-footer"><span id="slider-status-3" class="slider-status">Actualizado — verde</span><span class="slider-sub">Días desde última</span></div>
             </div>
         </div>
-
         <div class="sla-global">
             <div class="sla-items">
-                <div>
-                    <span class="label">Activos</span>
-                    <span id="sla-global-1">--</span>
-                </div>
-                <div>
-                    <span class="label">Completitud</span>
-                    <span id="sla-global-2">--</span>
-                </div>
-                <div>
-                    <span class="label">Freshness</span>
-                    <span id="sla-global-3">--</span>
-                </div>
+                <div><span class="label">Activos</span><span id="sla-global-1">--</span></div>
+                <div><span class="label">Completitud</span><span id="sla-global-2">--</span></div>
+                <div><span class="label">Freshness</span><span id="sla-global-3">--</span></div>
             </div>
-            <div class="sla-badge">
-                <span>Global</span>
-                <span id="sla-global-color">Verde</span>
-            </div>
+            <div class="sla-badge"><span>Global</span><span id="sla-global-color">Verde</span></div>
         </div>
     </section>
 
@@ -155,8 +137,8 @@
             <li><strong>Tema:</strong> <span>Actividad Física y Sedentarismo</span></li>
             <li><strong>Problema:</strong> <span>Alto sedentarismo en Chile (>80% INE)</span></li>
             <li><strong>Objetivo:</strong> <span>Medir nivel real de actividad física por rango etario</span></li>
-            <li><strong>Fuente:</strong> <span>Google Forms · 59 respuestas REALES</span></li>
-            <li><strong>Periodo:</strong> <span>Junio 2026</span></li>
+            <li><strong>Fuente:</strong> <span>Google Forms · 60 respuestas REALES</span></li>
+            <li><strong>Periodo:</strong> <span>Julio 2026</span></li>
             <li><strong>Observación:</strong> <span>Familiares, vecinos y amigos</span></li>
         </ul>
     </section>
