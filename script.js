@@ -207,8 +207,9 @@ async function cargarDashboard() {
 
     // ---- KPI 5 ----
     if (correlacion) {
-        setText('kpi-correlacion', 'r = ' + (correlacion.correlacion || 0).toFixed(4));
-        setText('hero-correlacion', 'r = ' + (correlacion.correlacion || 0).toFixed(4));
+        const valorCorr = Number(correlacion.correlacion || 0);
+        setText('kpi-correlacion', 'r = ' + valorCorr.toFixed(4));
+        setText('hero-correlacion', 'r = ' + valorCorr.toFixed(4));
         const sem = document.getElementById('correlacion-semaforo');
         if (sem) {
             sem.querySelectorAll('.luz').forEach(luz => luz.classList.toggle('activa', luz.dataset.color === (correlacion.color || 'yellow')));
