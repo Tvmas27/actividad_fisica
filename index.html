@@ -55,24 +55,27 @@
         <article class="kpi-card kpi-sla"><div class="kpi-top"><span class="kpi-label">KPI 7</span><span class="kpi-chip">SLA</span></div><h2 id="kpi-sla">Cargando...</h2><div id="kpi-sla-semaforo" class="semaforo"><span class="luz" data-color="red"></span><span class="luz" data-color="yellow"></span><span class="luz" data-color="green"></span></div><p id="kpi-sla-desc">Cargando...</p><div class="kpi-foot">Completitud / Freshness / Error Rate</div></article>
     </section>
 
-    <!-- TENDENCIA + CALIDAD -->
-    <div class="two-col">
-        <article class="card chart-card">
-            <div class="section-head"><p class="eyebrow">Tendencia</p><h3>Minutos promedio por rango etario</h3><span class="pill">Línea</span></div>
-            <canvas id="chartLinea" height="200"></canvas>
-        </article>
-        <article class="card info-card">
-            <div class="section-head"><p class="eyebrow">Calidad de datos</p><h3>Completitud y nulos por campo</h3><span class="pill">/api/quality</span></div>
-            <div class="table-wrap">
-                <table class="kpi-table">
-                    <thead><tr><th>Campo</th><th>% Completitud</th><th>Registros nulos</th><th>Estado</th></tr></thead>
-                    <tbody id="tabla-calidad-body"><tr><td colspan="4">Cargando...</td></tr></tbody>
-                </table>
-            </div>
-        </article>
-    </div>
+    <!-- TENDENCIA (GRÁFICO DE LÍNEA) -->
+    <article class="card chart-card">
+        <div class="section-head">
+            <p class="eyebrow">Tendencia</p>
+            <h3>Minutos promedio por rango etario</h3>
+            <span class="pill">Línea</span>
+        </div>
+        <canvas id="chartLinea" height="200"></canvas>
+    </article>
 
-    <!-- TABLA COMPLETA -->
+    <!-- GRÁFICO DE BARRAS (nuevo) -->
+    <article class="card chart-card">
+        <div class="section-head">
+            <p class="eyebrow">Distribución OMS</p>
+            <h3>Encuestados por nivel de actividad OMS</h3>
+            <span class="pill">Barras</span>
+        </div>
+        <canvas id="chartBarras" height="200"></canvas>
+    </article>
+
+    <!-- TABLA COMPLETA (rangos) -->
     <section class="card card-soft">
         <div class="section-head"><p class="eyebrow">Análisis completo</p><h3>KPI 2, 3 y 4: Minutos, sedentarismo y actividad</h3><span class="pill">Datos por rango</span></div>
         <div class="table-wrap">
@@ -125,7 +128,7 @@
             <li><strong>Objetivo:</strong> <span>Medir nivel real de actividad física por rango etario</span></li>
             <li><strong>Fuente:</strong> <span>Google Forms · 60 respuestas REALES</span></li>
             <li><strong>Periodo:</strong> <span>Julio 2026</span></li>
-            <li><strong>Recoleccion de datos:</strong> <span>Familiares, vecinos y amigos</span></li>
+            <li><strong>Recolección:</strong> <span>Familiares, vecinos y amigos</span></li>
         </ul>
     </section>
 

@@ -106,6 +106,7 @@ def jfec(t, a="f"):
         if did and ddate: return f"d.`{ddate}`", f"JOIN dim_fecha d ON {a}.`{fk}`=d.`{did}`"
     raise ValueError("Sin fecha")
 
+# --- Función quality (ya no se usa en el frontend, pero se conserva por si acaso) ---
 def quality(t, src):
     cols = q("SELECT COLUMN_NAME, DATA_TYPE FROM information_schema.columns WHERE table_schema=%s AND table_name=%s", [DB["database"], t])
     total = s(f"SELECT COUNT(*) FROM {t}")
@@ -127,7 +128,6 @@ def quality(t, src):
 
 def sla(t, src):
     total = s(f"SELECT COUNT(*) FROM {t}")
-    # Completitud
     checks = []
     for k in ["edad","horas_sentado","minutos_actividad","id_genero","id_actividad","id_salud","id_app"]:
         if k in cm(t):
@@ -136,13 +136,11 @@ def sla(t, src):
     completos = s(f"SELECT COUNT(*) FROM {t} WHERE {' AND '.join(checks)}") if checks else total
     pct = round(completos/total*100) if total else 0
     colcomp = "green" if pct>=95 else "yellow" if pct>=90 else "red"
-    # Freshness
     try:
         fe, fj = jfec(t)
         fresh = int(s(f"SELECT DATEDIFF(CURDATE(), MAX(x.fecha_valor)) FROM (SELECT {fe} AS fecha_valor FROM {t} f {fj}) x") or 0)
     except: fresh = 0
     colfresh = "green" if fresh<=21 else "yellow" if fresh<=42 else "red"
-    # Error
     invalid = []
     if "horas_sentado" in cm(t): invalid.append("horas_sentado < 0 OR horas_sentado > 18")
     if "minutos_actividad" in cm(t): invalid.append("minutos_actividad < 0")
@@ -231,24 +229,12 @@ for kind in ["nivel_oms","rango","sedentarismo","tipo_actividad","correlacion","
         endpoint = f"{kind}_{prefix.replace('/','_')}"
         app.add_url_rule(f"/api/kpi{prefix}/{kind}", endpoint=endpoint, view_func=kpi(kind))
 
-app.add_url_rule("/api/kpi/rango_etario", endpoint="rango_etario", view_func=kpi("rango"))
-app.add_url_rule("/api/kpi/etl/rango_etario", endpoint="etl_rango_etario", view_func=kpi("rango"))
-
 @app.route("/api/sla")
 @app.route("/api/kpi/etl/sla")
 def api_sla():
     try:
         source = source_from_request()
         return jsonify(sla(tb(source), source))
-    except Exception as e:
-        return jsonify({"ok": False, "error": str(e)}), 500
-
-@app.route("/api/quality")
-@app.route("/api/kpi/etl/quality")
-def api_quality():
-    try:
-        source = source_from_request()
-        return jsonify(quality(tb(source), source))
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)}), 500
 

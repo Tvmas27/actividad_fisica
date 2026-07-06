@@ -2,6 +2,7 @@ const API_BASE = 'http://localhost:5000';
 let globalData = { rango: null, sedentarismo: null, tipoAct: null, nivel: null, correlacion: null, usaApp: null, sla: null };
 let filtroActivos = 0;
 let chartLineaInstance = null;
+let chartBarrasInstance = null;
 let modoDatos = 'original';
 
 async function fetchData(endpoint) {
@@ -98,31 +99,74 @@ function actualizarGraficoLinea(rangoData) {
     });
 }
 
-async function cargarCalidad() {
-    try {
-        const res = await fetch(`${API_BASE}/api/quality${modoDatos === 'etl' ? '?source=etl' : ''}`);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const json = await res.json();
-        const tbody = document.getElementById('tabla-calidad-body');
-        if (!tbody) return;
-        if (!json.ok || !Array.isArray(json.data)) {
-            tbody.innerHTML = '<tr><td colspan="4">No hay datos</td></tr>';
-            return;
-        }
+function actualizarGraficoBarras(nivelData) {
+    const ctx = document.getElementById('chartBarras');
+    if (!ctx) return;
 
-        tbody.innerHTML = json.data.map(item => `
-            <tr>
-                <td><strong>${item.campo}</strong></td>
-                <td>${parseFloat(item.completitud || 0).toFixed(2)}%</td>
-                <td>${item.nulos ?? 0}</td>
-                <td><span class="pill" style="border-color: transparent; background: ${item.estado === 'verde' ? 'rgba(16,185,129,0.15)' : item.estado === 'amarillo' ? 'rgba(245,158,11,0.15)' : 'rgba(239,68,68,0.15)'}; color: ${item.estado === 'verde' ? '#34d399' : item.estado === 'amarillo' ? '#fbbf24' : '#f87171'};">${item.estado}</span></td>
-            </tr>
-        `).join('');
-    } catch (e) {
-        console.error('❌ Error cargando calidad:', e.message);
-        const tbody = document.getElementById('tabla-calidad-body');
-        if (tbody) tbody.innerHTML = '<tr><td colspan="4">Error al cargar calidad</td></tr>';
-    }
+    const orden = ['sedentario', 'insuficiente', 'activo'];
+    const colores = {
+        sedentario: '#f87171',
+        insuficiente: '#fbbf24',
+        activo: '#34d399'
+    };
+
+    const itemsOrdenados = orden.map(nivel =>
+        nivelData?.find(d => normalizarTexto(d.nivel) === nivel) || null
+    );
+    const valores = itemsOrdenados.map(item => item ? Number(item.total || 0) : 0);
+
+    if (chartBarrasInstance) chartBarrasInstance.destroy();
+    chartBarrasInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: orden,
+            datasets: [{
+                label: 'Total de encuestados',
+                data: valores,
+                backgroundColor: [colores.sedentario, colores.insuficiente, colores.activo],
+                borderColor: [colores.sedentario, colores.insuficiente, colores.activo],
+                borderWidth: 1,
+                borderRadius: 10,
+                maxBarThickness: 72
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            aspectRatio: 2.5,
+            plugins: {
+                legend: {
+                    labels: { color: '#d4def0', font: { size: 11, weight: '600' }, padding: 16 }
+                },
+                tooltip: {
+                    backgroundColor: '#1a1a2b',
+                    titleColor: '#fff',
+                    bodyColor: '#d4def0',
+                    padding: 12,
+                    cornerRadius: 8,
+                    callbacks: {
+                        label: function(context) {
+                            const item = itemsOrdenados[context.dataIndex];
+                            const total = context.parsed.y;
+                            const porcentaje = item ? Number(item.porcentaje || 0).toFixed(2) : '0.00';
+                            return `Total: ${total} (${porcentaje}%)`;
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    grid: { color: 'rgba(255,255,255,0.05)' },
+                    ticks: { color: '#7b8ba8' }
+                },
+                y: {
+                    grid: { color: 'rgba(255,255,255,0.05)' },
+                    ticks: { color: '#7b8ba8' },
+                    beginAtZero: true
+                }
+            }
+        }
+    });
 }
 
 function filtrarTablaRangos(filtro) {
@@ -173,9 +217,10 @@ async function cargarDashboard() {
     setText('hero-total-registros', nivel.reduce((s, n) => s + n.total, 0) || 0);
     setText('hero-periodo', 'Jul 2026');
 
-    // ---- KPI 1 ----
+    // ---- KPI 1 + gráfico barras ----
     if (nivel) {
         setText('kpi-nivel-oms', nivel.map(n => parseFloat(n.porcentaje).toFixed(2) + '%').join(' / '));
+        actualizarGraficoBarras(nivel);
     }
 
     // ---- KPI 2 y 3 ----
@@ -249,8 +294,6 @@ async function cargarDashboard() {
         document.getElementById('sla-global-2').textContent = compItem ? compItem.descripcion : '--';
         document.getElementById('sla-global-3').textContent = freshItem ? freshItem.descripcion : '--';
     }
-
-    await cargarCalidad();
 
     console.log('✅ Dashboard cargado con datos reales');
 }
