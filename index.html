@@ -13,18 +13,14 @@
 <body>
 <div class="dashboard">
 
-    <!-- HERO -->
+    <!-- HERO (sin pills) -->
     <section class="card hero">
         <div class="hero-copy">
-            <div class="badge-group">
-                <span class="pill pill-live">Dashboard</span>
-                <span class="pill">Datos en tiempo real</span>
-            </div>
             <h1>Dashboard de <span class="highlight">Registros de Actividad Física</span></h1>
             <p class="lead">Situación "vida deportiva" a través de una encuesta.</p>
             <div class="hero-actions">
                 <a class="btn btn-primary" href="#kpis">Ver KPIs</a>
-                <a class="btn btn-secondary" href="#sla">Revisar SLA</a>
+                <button type="button" id="btn-ver-sla" class="btn btn-secondary">Ver SLA</button>
             </div>
         </div>
         <div class="hero-panel">
@@ -55,7 +51,7 @@
         <article class="kpi-card kpi-sla"><div class="kpi-top"><span class="kpi-label">KPI 7</span><span class="kpi-chip">SLA</span></div><h2 id="kpi-sla">Cargando...</h2><div id="kpi-sla-semaforo" class="semaforo"><span class="luz" data-color="red"></span><span class="luz" data-color="yellow"></span><span class="luz" data-color="green"></span></div><p id="kpi-sla-desc">Cargando...</p><div class="kpi-foot">Completitud / Freshness / Error Rate</div></article>
     </section>
 
-    <!-- TENDENCIA (GRÁFICO DE LÍNEA) -->
+    <!-- TENDENCIA -->
     <article class="card chart-card">
         <div class="section-head">
             <p class="eyebrow">Tendencia</p>
@@ -65,7 +61,7 @@
         <canvas id="chartLinea" height="200"></canvas>
     </article>
 
-    <!-- GRÁFICO DE BARRAS (nuevo) -->
+    <!-- BARRAS -->
     <article class="card chart-card">
         <div class="section-head">
             <p class="eyebrow">Distribución OMS</p>
@@ -75,47 +71,22 @@
         <canvas id="chartBarras" height="200"></canvas>
     </article>
 
-    <!-- TABLA COMPLETA (rangos) -->
-    <section class="card card-soft">
-        <div class="section-head"><p class="eyebrow">Análisis completo</p><h3>KPI 2, 3 y 4: Minutos, sedentarismo y actividad</h3><span class="pill">Datos por rango</span></div>
-        <div class="table-wrap">
-            <table class="kpi-table">
-                <thead><tr><th>Rango</th><th>Minutos (KPI 2)</th><th>% Sedentarios (KPI 3)</th><th>Actividad (KPI 4)</th></tr></thead>
-                <tbody id="tabla-rangos"><tr><td colspan="4">Cargando...</td></tr></tbody>
-            </table>
-        </div>
-    </section>
-
-    <!-- MONITOREO -->
-    <section class="card card-soft monitoreo">
+    <!-- CRUD -->
+    <section class="card card-soft crud-card">
         <div class="section-head">
-            <div><p class="eyebrow">Monitoreo en tiempo real</p><h3>Filtros interactivos</h3></div>
-            <button type="button" id="toggle-etl-btn" class="btn btn-secondary">Ver datos filtrados</button>
+            <div><p class="eyebrow">Datos</p><h3>Insertar y eliminar registros</h3></div>
+            <span class="pill">CRUD</span>
         </div>
-        <div class="slider-grid">
-            <div class="slider-item">
-                <div class="slider-header"><span>Personas Activas</span><span id="slider-value-1">25%</span></div>
-                <input type="range" id="slider-1" min="0" max="100" value="25">
-                <div class="slider-footer"><span id="slider-status-1" class="slider-status">Bajo — rojo</span><span class="slider-sub">% cumple OMS</span></div>
-            </div>
-            <div class="slider-item">
-                <div class="slider-header"><span>Completitud</span><span id="slider-value-2">100%</span></div>
-                <input type="range" id="slider-2" min="0" max="100" value="100">
-                <div class="slider-footer"><span id="slider-status-2" class="slider-status">Completo — verde</span><span class="slider-sub">% registros completos</span></div>
-            </div>
-            <div class="slider-item">
-                <div class="slider-header"><span>Freshness</span><span id="slider-value-3">17 días</span></div>
-                <input type="range" id="slider-3" min="0" max="60" value="17">
-                <div class="slider-footer"><span id="slider-status-3" class="slider-status">Actualizado — verde</span><span class="slider-sub">Días desde última</span></div>
-            </div>
+        <form id="registro-form" class="registro-form"></form>
+        <div class="crud-actions">
+            <button type="submit" form="registro-form" class="btn btn-primary">Guardar registro</button>
+            <span id="registro-feedback" class="registro-feedback">Listo para insertar datos</span>
         </div>
-        <div class="sla-global">
-            <div class="sla-items">
-                <div><span class="label">Activos</span><span id="sla-global-1">--</span></div>
-                <div><span class="label">Completitud</span><span id="sla-global-2">--</span></div>
-                <div><span class="label">Freshness</span><span id="sla-global-3">--</span></div>
-            </div>
-            <div class="sla-badge"><span>Global</span><span id="sla-global-color">Verde</span></div>
+        <div class="table-wrap registro-table-wrap">
+            <table class="kpi-table registro-table">
+                <thead id="tabla-registros-head"><tr><th>Cargando...</th></tr></thead>
+                <tbody id="tabla-registros-body"><tr><td>Cargando...</td></tr></tbody>
+            </table>
         </div>
     </section>
 
@@ -145,6 +116,53 @@ Error Rate: <= 1% (verde) | 1-5% (amarillo) | > 5% (rojo)</code></div>
     </section>
 
 </div>
+
+<!-- MODAL DE CONFIRMACIÓN (eliminación) -->
+<div id="modal-confirm" class="modal-overlay">
+    <div class="modal-box">
+        <div class="modal-header">
+            <h3>Confirmar eliminación</h3>
+        </div>
+        <div class="modal-body">
+            <p id="modal-message">¿Eliminar este registro?</p>
+        </div>
+        <div class="modal-footer">
+            <button id="modal-cancel" class="btn btn-secondary">Cancelar</button>
+            <button id="modal-confirm-btn" class="btn btn-primary" style="background:#f43f5e;">Eliminar</button>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL SLA -->
+<div id="modal-sla" class="modal-overlay">
+    <div class="modal-box modal-sla-box">
+        <div class="modal-header">
+            <h3>Indicadores del SLA</h3>
+        </div>
+        <div class="modal-body" id="sla-modal-body">
+            <div class="sla-item">
+                <span class="sla-label">Completitud</span>
+                <span class="sla-value" id="sla-completitud">--</span>
+            </div>
+            <div class="sla-item">
+                <span class="sla-label">Freshness (días)</span>
+                <span class="sla-value" id="sla-freshness">--</span>
+            </div>
+            <div class="sla-item">
+                <span class="sla-label">Error Rate</span>
+                <span class="sla-value" id="sla-errorrate">--</span>
+            </div>
+            <div class="sla-semaforo-modal">
+                <span class="sla-semaforo-label">Semáforo global:</span>
+                <span id="sla-semaforo-global" class="sla-semaforo-badge">--</span>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button id="modal-sla-cerrar" class="btn btn-secondary">Cerrar</button>
+        </div>
+    </div>
+</div>
+
 <script src="script.js"></script>
 </body>
 </html>

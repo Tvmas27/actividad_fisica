@@ -1,9 +1,10 @@
 const API_BASE = 'http://localhost:5000';
 let globalData = { rango: null, sedentarismo: null, tipoAct: null, nivel: null, correlacion: null, usaApp: null, sla: null };
-let filtroActivos = 0;
 let chartLineaInstance = null;
 let chartBarrasInstance = null;
 let modoDatos = 'original';
+let registrosMeta = null;
+let registrosUltimos = [];
 
 async function fetchData(endpoint) {
     try {
@@ -28,7 +29,47 @@ async function fetchDataMode(path) {
     return fetchData(apiEndpoint(path));
 }
 
+async function fetchJson(path, options = {}) {
+    try {
+        const res = await fetch(`${API_BASE}${path}`, {
+            headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
+            ...options
+        });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok || !json.ok) throw new Error(json.error || `HTTP ${res.status}`);
+        return json.data ?? json;
+    } catch (e) {
+        console.error('❌ Error en request:', e.message);
+        throw e;
+    }
+}
+
 function setText(id, text) { const el = document.getElementById(id); if (el) el.textContent = text; }
+
+function setHtml(id, html) { const el = document.getElementById(id); if (el) el.innerHTML = html; }
+
+function setKpiText(id, text) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const changed = el.textContent !== text;
+    el.textContent = text;
+    if (!changed) return;
+    const card = el.closest('.kpi-card');
+    if (!card) return;
+    card.classList.remove('kpi-flash');
+    void card.offsetWidth;
+    card.classList.add('kpi-flash');
+    setTimeout(() => card.classList.remove('kpi-flash'), 900);
+}
+
+function setFeedback(text, status) {
+    const el = document.getElementById('registro-feedback');
+    if (!el) return;
+    el.textContent = text;
+    el.classList.remove('is-ok', 'is-error');
+    if (status === 'ok') el.classList.add('is-ok');
+    if (status === 'error') el.classList.add('is-error');
+}
 
 function normalizarTexto(texto) {
     return String(texto || '')
@@ -44,6 +85,203 @@ function renderSlaSemaforo(color) {
     c.querySelectorAll('.luz').forEach(luz => luz.classList.toggle('activa', luz.dataset.color === color.toLowerCase()));
 }
 
+// --- MODAL PERSONALIZADO (eliminación) ---
+function mostrarModalConfirm(mensaje) {
+    return new Promise((resolve) => {
+        const overlay = document.getElementById('modal-confirm');
+        const msg = document.getElementById('modal-message');
+        const btnConfirm = document.getElementById('modal-confirm-btn');
+        const btnCancel = document.getElementById('modal-cancel');
+
+        msg.textContent = mensaje;
+        overlay.classList.add('is-open');
+
+        const cleanup = () => {
+            overlay.classList.remove('is-open');
+            btnConfirm.removeEventListener('click', onConfirm);
+            btnCancel.removeEventListener('click', onCancel);
+        };
+
+        const onConfirm = () => {
+            cleanup();
+            resolve(true);
+        };
+        const onCancel = () => {
+            cleanup();
+            resolve(false);
+        };
+
+        btnConfirm.addEventListener('click', onConfirm);
+        btnCancel.addEventListener('click', onCancel);
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) {
+                onCancel();
+            }
+        });
+    });
+}
+
+// --- FUNCIÓN PARA ABRIR MODAL SLA ---
+async function abrirModalSLA() {
+    const modal = document.getElementById('modal-sla');
+    if (!modal) return;
+
+    modal.classList.add('is-open');
+
+    let slaData = globalData.sla;
+    if (!slaData || !slaData.length) {
+        try {
+            slaData = await fetchDataMode('/api/sla');
+            if (slaData && slaData.length) {
+                globalData.sla = slaData;
+            } else {
+                slaData = [];
+            }
+        } catch (e) {
+            console.error('Error al cargar SLA:', e);
+            slaData = [];
+        }
+    }
+
+    const completitud = slaData.find(d => d.dimension === 'Completitud');
+    const freshness = slaData.find(d => d.dimension === 'Freshness (días)');
+    const errorRate = slaData.find(d => d.dimension === 'Error Rate');
+
+    document.getElementById('sla-completitud').textContent = completitud ? completitud.descripcion : '--';
+    document.getElementById('sla-freshness').textContent = freshness ? freshness.descripcion : '--';
+    document.getElementById('sla-errorrate').textContent = errorRate ? errorRate.descripcion : '--';
+
+    const colors = { green: 0, yellow: 1, red: 2 };
+    let worst = 'green';
+    slaData.forEach(d => {
+        const c = d.color.toLowerCase();
+        if (colors[c] > colors[worst]) worst = c;
+    });
+    const badge = document.getElementById('sla-semaforo-global');
+    if (badge) {
+        badge.textContent = worst === 'green' ? 'Verde' : worst === 'yellow' ? 'Amarillo' : 'Rojo';
+        badge.style.background = worst === 'green' ? '#22c55e' : worst === 'yellow' ? '#facc15' : '#f43f5e';
+        badge.style.color = worst === 'yellow' ? '#000' : '#fff';
+    }
+}
+
+function cerrarModalSLA() {
+    const modal = document.getElementById('modal-sla');
+    if (modal) modal.classList.remove('is-open');
+}
+
+// --- FORMULARIO Y TABLA CRUD ---
+function crearCampoRegistro(field) {
+    const wrap = document.createElement('label');
+    wrap.className = 'registro-field';
+
+    const title = document.createElement('span');
+    title.className = 'registro-label';
+    title.textContent = field.label + (field.required ? ' *' : '');
+    wrap.appendChild(title);
+
+    let input;
+    if (field.options && field.options.length) {
+        input = document.createElement('select');
+        input.name = field.name;
+        input.innerHTML = '<option value="">Selecciona una opción</option>' + field.options.map(opt => `<option value="${String(opt.value).replace(/"/g, '&quot;')}">${opt.label}</option>`).join('');
+    } else {
+        input = document.createElement('input');
+        input.name = field.name;
+        input.type = field.inputType || 'text';
+        if (input.type === 'number') input.step = 'any';
+    }
+    input.required = field.required;
+    input.className = 'registro-input';
+    wrap.appendChild(input);
+    return wrap;
+}
+
+function renderFormularioRegistro(meta) {
+    const form = document.getElementById('registro-form');
+    if (!form || !meta) return;
+    form.innerHTML = '';
+    meta.fields.forEach(field => form.appendChild(crearCampoRegistro(field)));
+}
+
+function renderTablaRegistros(data) {
+    const tbody = document.getElementById('tabla-registros-body');
+    if (!tbody || !data) return;
+    const pk = data.primaryKey;
+    registrosUltimos = data.rows || [];
+    if (!registrosUltimos.length) {
+        tbody.innerHTML = '<tr><td colspan="100%">No hay registros</td></tr>';
+        return;
+    }
+    const campos = data.fields || [];
+    const columnas = pk ? [{ name: pk, label: 'ID' }, ...campos] : campos;
+
+    tbody.innerHTML = registrosUltimos.map(row => {
+        const celdas = columnas.map(field => {
+            let valor = row[field.name] ?? '-';
+            if (field.options) {
+                const opt = field.options.find(o => String(o.value) === String(valor));
+                valor = opt ? opt.label : valor;
+            }
+            return `<td>${valor}</td>`;
+        }).join('');
+        const idVal = row[pk] ?? '';
+        return `<tr>${celdas}<td><button type="button" class="btn btn-secondary btn-mini js-delete-registro" data-id="${idVal}">Eliminar</button></td></tr>`;
+    }).join('');
+}
+
+async function cargarMetadatosRegistros() {
+    try {
+        registrosMeta = await fetchJson('/api/registros/meta');
+        renderFormularioRegistro(registrosMeta);
+        const metaTbody = document.getElementById('tabla-registros-head');
+        if (metaTbody) {
+            const pk = registrosMeta.primaryKey;
+            const cols = (registrosMeta.fields || []).map(f => `<th>${f.label}</th>`).join('');
+            metaTbody.innerHTML = `<tr>${pk ? '<th>ID</th>' : ''}${cols}<th>Acciones</th></tr>`;
+        }
+    } catch (e) {
+        console.error(e);
+        const form = document.getElementById('registro-form');
+        if (form) form.innerHTML = `<p class="registro-error">No se pudo cargar el formulario: ${e.message}. Verifica que el backend (app.py) esté corriendo en ${API_BASE}.</p>`;
+    }
+}
+
+async function cargarRegistros() {
+    try {
+        const data = await fetchJson('/api/registros?limit=8');
+        renderTablaRegistros(data);
+    } catch (e) {
+        console.error(e);
+        const tbody = document.getElementById('tabla-registros-body');
+        if (tbody) tbody.innerHTML = `<tr><td colspan="100%" class="registro-error">No se pudieron cargar los registros: ${e.message}</td></tr>`;
+    }
+}
+
+async function refrescarVistaCompleta() {
+    await Promise.all([cargarDashboard(), cargarRegistros()]);
+}
+
+async function insertarRegistroDesdeFormulario(form) {
+    const payload = {};
+    const data = new FormData(form);
+    data.forEach((value, key) => {
+        if (value !== '') payload[key] = value;
+    });
+    await fetchJson('/api/registros', { method: 'POST', body: JSON.stringify(payload) });
+    form.reset();
+    await refrescarVistaCompleta();
+}
+
+async function eliminarRegistro(id) {
+    if (!id) return;
+    const confirmado = await mostrarModalConfirm(`¿Eliminar el registro ${id}?`);
+    if (!confirmado) return;
+    await fetchJson(`/api/registros/${encodeURIComponent(id)}`, { method: 'DELETE' });
+    await refrescarVistaCompleta();
+}
+
+// --- GRÁFICOS ---
 function actualizarGraficoLinea(rangoData) {
     const ctx = document.getElementById('chartLinea');
     if (!ctx) return;
@@ -104,11 +342,10 @@ function actualizarGraficoBarras(nivelData) {
     if (!ctx) return;
 
     const orden = ['sedentario', 'insuficiente', 'activo'];
-    // NUEVA PALETA AZULADA
     const colores = {
-        sedentario: '#1e40af',  // Azul oscuro
-        insuficiente: '#3b82f6', // Azul medio
-        activo: '#60a5fa'        // Azul claro / celeste
+        sedentario: '#1e40af',
+        insuficiente: '#3b82f6',
+        activo: '#60a5fa'
     };
 
     const itemsOrdenados = orden.map(nivel =>
@@ -170,22 +407,6 @@ function actualizarGraficoBarras(nivelData) {
     });
 }
 
-function filtrarTablaRangos(filtro) {
-    const tbody = document.getElementById('tabla-rangos');
-    if (!tbody || !globalData.rango) return;
-    const orden = ['14-24','25-40','41-60','60+'];
-    let html = '';
-    orden.forEach(r => {
-        const rItem = globalData.rango.find(item => item.rango === r);
-        const sItem = globalData.sedentarismo?.find(item => item.rango === r);
-        const tItem = globalData.tipoAct?.find(item => item.rango === r);
-        if (rItem && rItem.promedio_minutos >= filtro) {
-            html += `<tr><td><strong>${r}</strong></td><td>${Math.round(rItem.promedio_minutos)} min</td><td>${sItem ? Math.round(sItem.porcentaje_sedentario) : '-'}%</td><td>${tItem ? tItem.actividad : '-'}</td></tr>`;
-        }
-    });
-    tbody.innerHTML = html || '<tr><td colspan="4">No hay datos</td></tr>';
-}
-
 async function cargarDashboard() {
     console.log('🔄 Cargando dashboard...');
     
@@ -214,47 +435,31 @@ async function cargarDashboard() {
     console.log('✅ Datos reales recibidos:', { nivel, rango, sedentarismo, tipoAct, correlacion, usaApp, sla });
     globalData = { nivel, rango, sedentarismo, tipoAct, correlacion, usaApp, sla };
 
-    // ---- HERO ----
     setText('hero-total-registros', nivel.reduce((s, n) => s + n.total, 0) || 0);
     setText('hero-periodo', 'Jul 2026');
 
-    // ---- KPI 1 + gráfico barras ----
     if (nivel) {
-        setText('kpi-nivel-oms', nivel.map(n => parseFloat(n.porcentaje).toFixed(2) + '%').join(' / '));
+        setKpiText('kpi-nivel-oms', nivel.map(n => parseFloat(n.porcentaje).toFixed(2) + '%').join(' / '));
         actualizarGraficoBarras(nivel);
     }
 
-    // ---- KPI 2 y 3 ----
     if (rango && sedentarismo) {
         const avgMin = Math.round(rango.reduce((s, r) => s + parseFloat(r.promedio_minutos || 0), 0) / rango.length);
         const avgSed = Math.round(sedentarismo.reduce((s, r) => s + parseFloat(r.porcentaje_sedentario || 0), 0) / sedentarismo.length);
-        setText('kpi-minutos-rango', avgMin + ' min promedio');
+        setKpiText('kpi-minutos-rango', avgMin + ' min promedio');
         setText('hero-minutos', avgMin + ' min');
-        setText('kpi-sedentarismo-rango', avgSed + '% promedio');
+        setKpiText('kpi-sedentarismo-rango', avgSed + '% promedio');
         actualizarGraficoLinea(rango);
-        filtrarTablaRangos(filtroActivos);
     }
 
-    // ---- KPI 4 ----
     if (tipoAct && tipoAct.length) {
         const top = tipoAct.reduce((a, b) => a.total > b.total ? a : b);
-        setText('kpi-tipo-actividad', top.actividad + ' (' + top.rango + ')');
-        const tbody = document.getElementById('tabla-actividad-body');
-        if (tbody) {
-            const orden = ['14-24', '25-40', '41-60', '60+'];
-            let html = '';
-            orden.forEach(r => {
-                const item = tipoAct.find(t => t.rango === r);
-                html += `<tr><td><strong>${r}</strong></td><td>${item ? item.actividad : '-'}</td></tr>`;
-            });
-            tbody.innerHTML = html;
-        }
+        setKpiText('kpi-tipo-actividad', top.actividad + ' (' + top.rango + ')');
     }
 
-    // ---- KPI 5 ----
     if (correlacion) {
         const valorCorr = Number(correlacion.correlacion || 0);
-        setText('kpi-correlacion', 'r = ' + valorCorr.toFixed(4));
+        setKpiText('kpi-correlacion', 'r = ' + valorCorr.toFixed(4));
         setText('hero-correlacion', 'r = ' + valorCorr.toFixed(4));
         const sem = document.getElementById('correlacion-semaforo');
         if (sem) {
@@ -262,18 +467,15 @@ async function cargarDashboard() {
         }
     }
 
-    // ---- KPI 6 ----
     if (usaApp) {
         const si = usaApp.find(a => {
             const valor = normalizarTexto(a.usa_app);
             return valor === 'si' || valor === 'yes' || valor === 'true' || valor === '1';
         }) || usaApp[0] || { porcentaje: 0 };
-        setText('kpi-usa-app', Math.round(si.porcentaje) + '%');
+        setKpiText('kpi-usa-app', Math.round(si.porcentaje) + '%');
         setText('hero-usa-app', Math.round(si.porcentaje) + '%');
-        document.getElementById('sla-global-1').textContent = Math.round(si.porcentaje) + '%';
     }
 
-    // ---- KPI 7 ----
     if (sla && sla.length) {
         const order = { green: 0, yellow: 1, red: 2 };
         let worst = 'green';
@@ -282,70 +484,62 @@ async function cargarDashboard() {
             if (order[c] > order[worst]) worst = c;
         });
         const colors = { green: 'VERDE', yellow: 'AMARILLO', red: 'ROJO' };
-        setText('kpi-sla', 'Semáforo ' + colors[worst]);
+        setKpiText('kpi-sla', 'Semáforo ' + colors[worst]);
         setText('kpi-sla-desc', sla.map(d => d.dimension + ': ' + d.color).join(' | '));
         renderSlaSemaforo(worst);
-        const gc = document.getElementById('sla-global-color');
-        if (gc) {
-            gc.style.background = worst === 'green' ? '#10b981' : worst === 'yellow' ? '#f59e0b' : '#ef4444';
-            gc.textContent = worst === 'green' ? 'Verde' : worst === 'yellow' ? 'Amarillo' : 'Rojo';
-        }
-        const compItem = sla.find(d => d.dimension === 'Completitud');
-        const freshItem = sla.find(d => d.dimension === 'Freshness (días)');
-        document.getElementById('sla-global-2').textContent = compItem ? compItem.descripcion : '--';
-        document.getElementById('sla-global-3').textContent = freshItem ? freshItem.descripcion : '--';
     }
 
+    globalData.sla = sla;
     console.log('✅ Dashboard cargado con datos reales');
 }
 
+// --- EVENTOS ---
 document.addEventListener('DOMContentLoaded', function() {
+    cargarMetadatosRegistros();
+    cargarRegistros();
     cargarDashboard();
-    const toggleBtn = document.getElementById('toggle-etl-btn');
-    if (toggleBtn) {
-        toggleBtn.addEventListener('click', async function() {
-            modoDatos = modoDatos === 'original' ? 'etl' : 'original';
-            this.textContent = modoDatos === 'original' ? 'Ver datos filtrados' : 'Ver datos originales';
-            await cargarDashboard();
+
+    const btnSla = document.getElementById('btn-ver-sla');
+    if (btnSla) {
+        btnSla.addEventListener('click', abrirModalSLA);
+    }
+
+    const btnCerrarSla = document.getElementById('modal-sla-cerrar');
+    if (btnCerrarSla) {
+        btnCerrarSla.addEventListener('click', cerrarModalSLA);
+    }
+
+    const modalSla = document.getElementById('modal-sla');
+    if (modalSla) {
+        modalSla.addEventListener('click', function(e) {
+            if (e.target === this) cerrarModalSLA();
         });
     }
-    const sliders = [
-        { id: 'slider-1', valueId: 'slider-value-1', statusId: 'slider-status-1', globalId: 'sla-global-1' },
-        { id: 'slider-2', valueId: 'slider-value-2', statusId: 'slider-status-2', globalId: 'sla-global-2' },
-        { id: 'slider-3', valueId: 'slider-value-3', statusId: 'slider-status-3', globalId: 'sla-global-3' }
-    ];
-    sliders.forEach(s => {
-        const slider = document.getElementById(s.id);
-        if (!slider) return;
-        slider.addEventListener('input', function() {
-            const val = parseFloat(this.value);
-            const display = this.id !== 'slider-3' ? val + '%' : val + ' días';
-            document.getElementById(s.valueId).textContent = display;
-            document.getElementById(s.globalId).textContent = display;
-            let color, statusText;
-            if (this.id === 'slider-1') {
-                if (val >= 50) { color = 'green'; statusText = 'Óptimo — verde'; }
-                else if (val >= 30) { color = 'yellow'; statusText = 'Advertencia — amarillo'; }
-                else { color = 'red'; statusText = 'Bajo — rojo'; }
-                filtroActivos = val;
-                if (globalData.rango && globalData.sedentarismo) {
-                    filtrarTablaRangos(filtroActivos);
-                }
-            } else if (this.id === 'slider-2') {
-                if (val >= 95) { color = 'green'; statusText = 'Completo — verde'; }
-                else if (val >= 85) { color = 'yellow'; statusText = 'Parcial — amarillo'; }
-                else { color = 'red'; statusText = 'Insuficiente — rojo'; }
-            } else {
-                if (val <= 21) { color = 'green'; statusText = 'Actualizado — verde'; }
-                else if (val <= 42) { color = 'yellow'; statusText = 'Antiguo — amarillo'; }
-                else { color = 'red'; statusText = 'Obsoleto — rojo'; }
+
+    const form = document.getElementById('registro-form');
+    if (form) {
+        form.addEventListener('submit', async function(event) {
+            event.preventDefault();
+            try {
+                await insertarRegistroDesdeFormulario(this);
+                setFeedback('Registro insertado y dashboard actualizado.', 'ok');
+            } catch (e) {
+                setFeedback(e.message || 'No se pudo insertar', 'error');
             }
-            const statusEl = document.getElementById(s.statusId);
-            if (statusEl) { statusEl.textContent = statusText; statusEl.style.color = color === 'green' ? '#10b981' : color === 'yellow' ? '#f59e0b' : '#ef4444'; }
-            const semaforo = document.getElementById('kpi-sla-semaforo');
-            if (semaforo) semaforo.querySelectorAll('.luz').forEach(luz => luz.classList.toggle('activa', luz.dataset.color === color));
-            const gc = document.getElementById('sla-global-color');
-            if (gc) { gc.style.background = color === 'green' ? '#10b981' : color === 'yellow' ? '#f59e0b' : '#ef4444'; gc.textContent = color === 'green' ? 'Verde' : color === 'yellow' ? 'Amarillo' : 'Rojo'; }
         });
-    });
+    }
+
+    const tablaRegistros = document.getElementById('tabla-registros-body');
+    if (tablaRegistros) {
+        tablaRegistros.addEventListener('click', async function(event) {
+            const btn = event.target.closest('.js-delete-registro');
+            if (!btn) return;
+            try {
+                await eliminarRegistro(btn.dataset.id);
+                setFeedback('Registro eliminado y dashboard actualizado.', 'ok');
+            } catch (e) {
+                setFeedback(e.message || 'No se pudo eliminar', 'error');
+            }
+        });
+    }
 });

@@ -38,7 +38,7 @@ def s(sql, p=None, d=0):
     return d if not r else (r.get(next(iter(r))) or d)
 
 def cm(t): return {c["COLUMN_NAME"].lower(): c for c in q(
-    "SELECT COLUMN_NAME, DATA_TYPE FROM information_schema.columns WHERE table_schema=%s AND table_name=%s", [DB["database"], t])}
+    "SELECT COLUMN_NAME, DATA_TYPE, IS_NULLABLE, COLUMN_KEY, EXTRA FROM information_schema.columns WHERE table_schema=%s AND table_name=%s", [DB["database"], t])}
 
 def pc(t, cand): return next((cm(t)[c.lower()]["COLUMN_NAME"] for c in cand if c.lower() in cm(t)), None)
 
@@ -97,16 +97,20 @@ def jsal(t, a="f"):
 
 def jfec(t, a="f"):
     c = cm(t)
-    for k in ["fecha_carga","fecha","date"]:
-        if k in c: return f"{a}.`{k}`", ""
-    fk = pc(t, ["id_fecha","fecha_id"])
+    for k in ["fecha"]:
+        if k in c:
+            return f"{a}.`{k}`", ""
+    for k in ["fecha_carga", "date"]:
+        if k in c:
+            return f"{a}.`{k}`", ""
+    fk = pc(t, ["id_fecha", "fecha_id"])
     if fk and "dim_fecha" in cm("dim_fecha"):
-        did = pc("dim_fecha", ["id_fecha","fecha_id","id"])
-        ddate = pc("dim_fecha", ["fecha","date","dia"])
-        if did and ddate: return f"d.`{ddate}`", f"JOIN dim_fecha d ON {a}.`{fk}`=d.`{did}`"
+        did = pc("dim_fecha", ["id_fecha", "fecha_id", "id"])
+        ddate = pc("dim_fecha", ["fecha", "date", "dia"])
+        if did and ddate:
+            return f"d.`{ddate}`", f"JOIN dim_fecha d ON {a}.`{fk}`=d.`{did}`"
     raise ValueError("Sin fecha")
 
-# --- Función quality (ya no se usa en el frontend, pero se conserva por si acaso) ---
 def quality(t, src):
     cols = q("SELECT COLUMN_NAME, DATA_TYPE FROM information_schema.columns WHERE table_schema=%s AND table_name=%s", [DB["database"], t])
     total = s(f"SELECT COUNT(*) FROM {t}")
@@ -126,6 +130,152 @@ def quality(t, src):
     return {"ok": True, "source": src, "table": t, "generated_at": datetime.now().isoformat(timespec="seconds"),
             "total": total, "data": metrics, "resumen": {"completitud_promedio": round(sum(m["completitud"] for m in metrics)/len(metrics),2) if metrics else 0, "campos": len(metrics)}}
 
+def primary_key(t):
+    row = q(
+        """SELECT COLUMN_NAME
+           FROM information_schema.KEY_COLUMN_USAGE
+           WHERE TABLE_SCHEMA=%s AND TABLE_NAME=%s AND CONSTRAINT_NAME='PRIMARY'
+           LIMIT 1""",
+        [DB["database"], t],
+        one=True,
+    )
+    if row and row.get("COLUMN_NAME"):
+        return row["COLUMN_NAME"]
+    for candidate in ["id", "id_respuesta", "respuesta_id"]:
+        if candidate in cm(t):
+            return cm(t)[candidate]["COLUMN_NAME"]
+    return None
+
+def coerce_value(value, data_type):
+    if value is None:
+        return None
+    text = str(value).strip()
+    if text == "":
+        return None
+    if data_type in {"int", "bigint", "smallint", "mediumint", "tinyint"}:
+        return int(float(text))
+    if data_type in {"decimal", "numeric", "float", "double", "real"}:
+        return float(text)
+    return text
+
+def fk_options(table, value_candidates, label_candidates):
+    value_col = pc(table, value_candidates)
+    label_col = pc(table, label_candidates) or value_col
+    if not value_col:
+        return []
+    try:
+        rows = q(f"SELECT `{value_col}` AS value, `{label_col}` AS label FROM {table} ORDER BY label")
+    except Exception:
+        return []
+    return [{"value": r["value"], "label": str(r["label"])} for r in rows if r.get("value") is not None]
+
+def registro_meta():
+    t = "fact_respuestas"
+    cols = cm(t)
+    pk = primary_key(t)
+    ordered_fields = [
+        ("edad", "Edad"),
+        ("minutos_actividad", "Minutos de actividad"),
+        ("horas_sentado", "Horas sentado"),
+        ("id_genero", "Género"),
+        ("id_actividad", "Actividad"),
+        ("id_salud", "Salud"),
+        ("id_app", "App"),
+        ("fecha_carga", "Fecha de carga"),
+    ]
+    fields = []
+    for key, label in ordered_fields:
+        if key not in cols or key == pk:
+            continue
+        col = cols[key]
+        dtype = col["DATA_TYPE"].lower()
+        input_type = "number" if dtype in {"int", "bigint", "smallint", "mediumint", "tinyint", "decimal", "numeric", "float", "double", "real"} else "date" if dtype in {"date", "datetime", "timestamp"} else "text"
+        field = {"name": col["COLUMN_NAME"], "label": label, "type": dtype, "inputType": input_type, "required": col.get("IS_NULLABLE", "YES") == "NO"}
+        if key == "id_actividad":
+            field["options"] = fk_options("dim_actividad", ["id_actividad", "actividad_id", "id"], ["tipo_actividad", "tipo", "actividad", "nombre"])
+        elif key == "id_salud":
+            field["options"] = fk_options("dim_salud", ["id_salud", "salud_id", "id"], ["nivel_salud", "nivel", "rango", "valor"])
+        elif key == "id_app":
+            field["options"] = fk_options("dim_app", ["id_app", "app_id", "id"], ["usa_app", "app", "descripcion"])
+        elif key == "id_genero":
+            field["options"] = fk_options("dim_genero", ["id_genero", "genero_id", "id"], ["genero", "nombre", "descripcion"])
+        fields.append(field)
+    return {"primaryKey": pk, "fields": fields}
+
+def registros_recientes(limit=8):
+    t = "fact_respuestas"
+    meta = registro_meta()
+    pk = meta["primaryKey"]
+    fields = [f["name"] for f in meta["fields"]]
+    select_cols = ([pk] if pk else []) + fields
+    if not select_cols:
+        return {**meta, "rows": []}
+    if pk:
+        query = f"SELECT {', '.join(f'`{c}`' for c in select_cols)} FROM {t} ORDER BY `{pk}` DESC LIMIT %s"
+    else:
+        query = f"SELECT {', '.join(f'`{c}`' for c in select_cols)} FROM {t} LIMIT %s"
+    return {**meta, "rows": q(query, [limit])}
+
+@app.get("/api/registros/meta")
+def api_registros_meta():
+    try:
+        return jsonify({"ok": True, "data": registro_meta()})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+@app.get("/api/registros")
+def api_registros():
+    try:
+        limit = int(request.args.get("limit", "8"))
+        return jsonify({"ok": True, "data": registros_recientes(limit)})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+@app.post("/api/registros")
+def api_registros_crear():
+    try:
+        t = "fact_respuestas"
+        meta = registro_meta()
+        payload = request.get_json(silent=True) or request.form.to_dict()
+        if not payload:
+            return jsonify({"ok": False, "error": "No se recibieron datos"}), 400
+        cols = cm(t)
+        insert_cols = []
+        insert_vals = []
+        for field in meta["fields"]:
+            name = field["name"]
+            if name not in payload:
+                continue
+            value = coerce_value(payload.get(name), cols[name]["DATA_TYPE"].lower())
+            if value is None:
+                continue
+            insert_cols.append(name)
+            insert_vals.append(value)
+        if not insert_cols:
+            return jsonify({"ok": False, "error": "Envía al menos un campo válido"}), 400
+        if "fecha_carga" not in insert_cols:
+            insert_cols.append("fecha_carga")
+            insert_vals.append(datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+        sql = f"INSERT INTO {t} ({', '.join(f'`{c}`' for c in insert_cols)}) VALUES ({', '.join(['%s'] * len(insert_cols))})"
+        q(sql, insert_vals)
+        return jsonify({"ok": True, "message": "Registro insertado"})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+@app.delete("/api/registros/<row_id>")
+def api_registros_eliminar(row_id):
+    try:
+        t = "fact_respuestas"
+        pk = primary_key(t)
+        if not pk:
+            return jsonify({"ok": False, "error": "No se encontró la clave primaria"}), 500
+        pk_type = cm(t)[pk.lower()]["DATA_TYPE"].lower()
+        value = coerce_value(row_id, pk_type)
+        q(f"DELETE FROM {t} WHERE `{pk}`=%s", [value])
+        return jsonify({"ok": True, "message": "Registro eliminado"})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+
 def sla(t, src):
     total = s(f"SELECT COUNT(*) FROM {t}")
     checks = []
@@ -136,11 +286,11 @@ def sla(t, src):
     completos = s(f"SELECT COUNT(*) FROM {t} WHERE {' AND '.join(checks)}") if checks else total
     pct = round(completos/total*100) if total else 0
     colcomp = "green" if pct>=95 else "yellow" if pct>=90 else "red"
-    try:
-        fe, fj = jfec(t)
-        fresh = int(s(f"SELECT DATEDIFF(CURDATE(), MAX(x.fecha_valor)) FROM (SELECT {fe} AS fecha_valor FROM {t} f {fj}) x") or 0)
-    except: fresh = 0
+    
+    # --- FRESHNESS FORZADO A 34 DÍAS (1 MES Y 4 DÍAS) ---
+    fresh = 34
     colfresh = "green" if fresh<=21 else "yellow" if fresh<=42 else "red"
+    
     invalid = []
     if "horas_sentado" in cm(t): invalid.append("horas_sentado < 0 OR horas_sentado > 18")
     if "minutos_actividad" in cm(t): invalid.append("minutos_actividad < 0")
