@@ -61,12 +61,12 @@ function actualizarGraficoLinea(rangoData) {
             datasets: [{
                 label: 'Minutos promedio',
                 data: valores,
-                borderColor: '#7ee0c4',
-                backgroundColor: 'rgba(126, 224, 196, 0.16)',
-                pointBackgroundColor: '#7ee0c4',
-                pointBorderColor: '#0b0b12',
-                pointRadius: 5,
-                pointHoverRadius: 7,
+                borderColor: '#3b82f6',
+                backgroundColor: 'rgba(59, 130, 246, 0.12)',
+                pointBackgroundColor: '#ffffff',
+                pointBorderColor: '#000000',
+                pointRadius: 6,
+                pointHoverRadius: 8,
                 borderWidth: 3,
                 tension: 0.35,
                 fill: true
@@ -78,12 +78,12 @@ function actualizarGraficoLinea(rangoData) {
             aspectRatio: 2.5,
             plugins: {
                 legend: {
-                    labels: { color: '#d4def0', font: { size: 11, weight: '600' }, padding: 16 }
+                    labels: { color: '#b0bcc8', font: { size: 11, weight: '600' }, padding: 16 }
                 },
                 tooltip: {
                     backgroundColor: '#1a1a2b',
                     titleColor: '#fff',
-                    bodyColor: '#d4def0',
+                    bodyColor: '#c8d4e8',
                     padding: 12,
                     cornerRadius: 8,
                     callbacks: {
@@ -92,8 +92,8 @@ function actualizarGraficoLinea(rangoData) {
                 }
             },
             scales: {
-                x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#7b8ba8' } },
-                y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#7b8ba8' } }
+                x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#8ba3c7' } },
+                y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#8ba3c7' } }
             }
         }
     });
@@ -104,10 +104,11 @@ function actualizarGraficoBarras(nivelData) {
     if (!ctx) return;
 
     const orden = ['sedentario', 'insuficiente', 'activo'];
+    // NUEVA PALETA AZULADA
     const colores = {
-        sedentario: '#f87171',
-        insuficiente: '#fbbf24',
-        activo: '#34d399'
+        sedentario: '#1e40af',  // Azul oscuro
+        insuficiente: '#3b82f6', // Azul medio
+        activo: '#60a5fa'        // Azul claro / celeste
     };
 
     const itemsOrdenados = orden.map(nivel =>
@@ -136,12 +137,12 @@ function actualizarGraficoBarras(nivelData) {
             aspectRatio: 2.5,
             plugins: {
                 legend: {
-                    labels: { color: '#d4def0', font: { size: 11, weight: '600' }, padding: 16 }
+                    labels: { color: '#b0bcc8', font: { size: 11, weight: '600' }, padding: 16 }
                 },
                 tooltip: {
                     backgroundColor: '#1a1a2b',
                     titleColor: '#fff',
-                    bodyColor: '#d4def0',
+                    bodyColor: '#c8d4e8',
                     padding: 12,
                     cornerRadius: 8,
                     callbacks: {
@@ -157,11 +158,11 @@ function actualizarGraficoBarras(nivelData) {
             scales: {
                 x: {
                     grid: { color: 'rgba(255,255,255,0.05)' },
-                    ticks: { color: '#7b8ba8' }
+                    ticks: { color: '#8ba3c7' }
                 },
                 y: {
                     grid: { color: 'rgba(255,255,255,0.05)' },
-                    ticks: { color: '#7b8ba8' },
+                    ticks: { color: '#8ba3c7' },
                     beginAtZero: true
                 }
             }
@@ -190,7 +191,7 @@ async function cargarDashboard() {
     
     const [nivel, rango, sedentarismo, tipoAct, correlacion, usaApp, sla] = await Promise.all([
         fetchDataMode('/api/kpi/nivel_oms'),
-        fetchDataMode('/api/kpi/rango_etario'),
+        fetchDataMode('/api/kpi/rango'),
         fetchDataMode('/api/kpi/sedentarismo'),
         fetchDataMode('/api/kpi/tipo_actividad'),
         fetchDataMode('/api/kpi/correlacion'),
