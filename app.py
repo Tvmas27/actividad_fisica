@@ -173,6 +173,7 @@ def registro_meta():
     t = "fact_respuestas"
     cols = cm(t)
     pk = primary_key(t)
+    # 🔥 ELIMINADA LA LÍNEA DE "fecha_carga" PARA QUE NO APAREZCA EN EL FORMULARIO
     ordered_fields = [
         ("edad", "Edad"),
         ("minutos_actividad", "Minutos de actividad"),
@@ -181,7 +182,6 @@ def registro_meta():
         ("id_actividad", "Actividad"),
         ("id_salud", "Salud"),
         ("id_app", "App"),
-        ("fecha_carga", "Fecha de carga"),
     ]
     fields = []
     for key, label in ordered_fields:
@@ -253,6 +253,7 @@ def api_registros_crear():
             insert_vals.append(value)
         if not insert_cols:
             return jsonify({"ok": False, "error": "Envía al menos un campo válido"}), 400
+        # ✅ FECHA_CARGA SE AGREGA AUTOMÁTICAMENTE (el usuario no la ve)
         if "fecha_carga" not in insert_cols:
             insert_cols.append("fecha_carga")
             insert_vals.append(datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
@@ -287,7 +288,7 @@ def sla(t, src):
     pct = round(completos/total*100) if total else 0
     colcomp = "green" if pct>=95 else "yellow" if pct>=90 else "red"
     
-    # --- FRESHNESS FORZADO A 34 DÍAS (1 MES Y 4 DÍAS) ---
+    # ✅ FRESHNESS FORZADO A 34 DÍAS (1 MES Y 4 DÍAS)
     fresh = 34
     colfresh = "green" if fresh<=21 else "yellow" if fresh<=42 else "red"
     
